@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Administrativo — Mold Arq</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --concreto:#E8E4DF;--grafite:#2C2C2C;--musgo:#5C7A6B;--gelo:#F7F6F4;
+    --grafite-900:#1d1d1d;--line:rgba(44,44,44,.16);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--gelo);color:var(--grafite);font-family:'Inter',system-ui,sans-serif;line-height:1.6;padding:32px 20px}
+  h1,h2{font-family:'DM Sans',sans-serif;letter-spacing:-.01em}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:1.6rem;margin-bottom:6px}
+  .sub{color:#56534d;margin-bottom:32px;font-size:.95rem}
+  .card{background:#fff;border:1px solid var(--line);padding:24px;margin-bottom:24px}
+  label{display:block;font-size:.82rem;font-weight:600;font-family:'DM Sans';margin-bottom:6px}
+  input{width:100%;font-family:inherit;font-size:1rem;padding:.75em 1em;border:1.5px solid var(--line);background:var(--gelo);margin-bottom:14px}
+  input:focus{outline:2px solid var(--musgo);outline-offset:1px}
+  button{font-family:'DM Sans';font-weight:600;font-size:.95rem;padding:.8em 1.4em;border:1.5px solid var(--grafite);background:var(--grafite);color:var(--gelo);cursor:pointer}
+  button:hover{background:var(--musgo);border-color:var(--musgo)}
+  button:disabled{opacity:.5;cursor:default}
+  .note{font-size:.88rem;margin-top:10px;min-height:1.2em;color:#b23b3b}
+  .result{display:none;margin-top:16px;padding:16px;background:var(--concreto);border:1px solid var(--line)}
+  .result b{font-family:'DM Sans'}
+  .result .pass{font-size:1.4rem;font-weight:700;font-family:'DM Sans';letter-spacing:.06em;margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{font-family:'DM Sans';font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#6c685f}
+  #adminGate .card{max-width:420px}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Painel Administrativo</h1>
+  <p class="sub">Uso interno — Mold Arq. Não compartilhe este link.</p>
+
+  <div id="adminGate">
+    <div class="card">
+      <label for="adminPass">Senha de administrador</label>
+      <input type="password" id="adminPass" autocomplete="current-password">
+      <button type="button" id="adminEnterBtn">Entrar</button>
+      <p class="note" id="adminGateNote"></p>
+    </div>
+  </div>
+
+  <div id="adminPanel" hidden>
+    <div class="card">
+      <h2 style="font-size:1.1rem;margin-bottom:16px">Gerar senha para novo cliente</h2>
+      <label for="clientName">Nome do cliente / empresa</label>
+      <input type="text" id="clientName" placeholder="Ex: Empresa XPTO Ltda">
+      <button type="button" id="createBtn">Gerar senha</button>
+      <p class="note" id="createNote"></p>
+      <div class="result" id="createResult">
+        <span>Senha gerada para <b id="resultName"></b>:</span>
+        <div class="pass" id="resultPass"></div>
+        <button type="button" id="copyBtn">Copiar senha</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1.1rem;margin-bottom:16px">Clientes cadastrados</h2>
+      <button type="button" id="refreshBtn">Atualizar lista</button>
+      <p class="note" id="listNote"></p>
+      <table id="clientsTable" hidden>
+        <thead><tr><th>Cliente</th><th>Senha</th><th>Criado em</th></tr></thead>
+        <tbody id="clientsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminPassword = sessionStorage.getItem('moldarq_admin') || null;
+
+const adminGate = document.getElementById('adminGate');
+const adminPanel = document.getElementById('adminPanel');
+const adminPass = document.getElementById('adminPass');
+const adminEnterBtn = document.getElementById('adminEnterBtn');
+const adminGateNote = document.getElementById('adminGateNote');
+
+const clientName = document.getElementById('clientName');
+const createBtn = document.getElementById('createBtn');
+const createNote = document.getElementById('createNote');
+const createResult = document.getElementById('createResult');
+const resultName = document.getElementById('resultName');
+const resultPass = document.getElementById('resultPass');
+const copyBtn = document.getElementById('copyBtn');
+
+const refreshBtn = document.getElementById('refreshBtn');
+const listNote = document.getElementById('listNote');
+const clientsTable = document.getElementById('clientsTable');
+const clientsBody = document.getElementById('clientsBody');
+
+function showPanel(){
+  adminGate.hidden = true;
+  adminPanel.hidden = false;
+  loadClients();
+}
+
+async function enterAdmin(){
+  const value = adminPass.value.trim();
+  if(!value) return;
+  adminEnterBtn.disabled = true;
+  // Testa a senha chamando a listagem (que já exige a senha de admin)
+  try{
+    const res = await fetch('/api/admin/list-clients', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ adminPassword: value })
+    });
+    if(res.ok){
+      adminPassword = value;
+      sessionStorage.setItem('moldarq_admin', adminPassword);
+      showPanel();
+    } else {
+      const data = await res.json();
+      adminGateNote.textContent = data.error || 'Senha incorreta.';
+    }
+  }catch(err){
+    adminGateNote.textContent = 'Não consegui conectar ao servidor.';
+  }finally{
+    adminEnterBtn.disabled = false;
+  }
+}
+adminEnterBtn.addEventListener('click', enterAdmin);
+adminPass.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); enterAdmin(); } });
+
+if(adminPassword){
+  showPanel();
+}
+
+createBtn.addEventListener('click', async ()=>{
+  const name = clientName.value.trim();
+  if(!name){ createNote.textContent = 'Digite o nome do cliente.'; return; }
+  createBtn.disabled = true;
+  createNote.textContent = '';
+  createResult.style.display = 'none';
+  try{
+    const res = await fetch('/api/admin/create-client', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ adminPassword, clientName: name })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      createNote.textContent = data.error || 'Erro ao gerar a senha.';
+      return;
+    }
+    resultName.textContent = data.name;
+    resultPass.textContent = data.password;
+    createResult.style.display = 'block';
+    clientName.value = '';
+    loadClients();
+  }catch(err){
+    createNote.textContent = 'Não consegui conectar ao servidor.';
+  }finally{
+    createBtn.disabled = false;
+  }
+});
+
+copyBtn.addEventListener('click', ()=>{
+  navigator.clipboard.writeText(resultPass.textContent).then(()=>{
+    copyBtn.textContent = 'Copiado!';
+    setTimeout(()=> copyBtn.textContent = 'Copiar senha', 1500);
+  });
+});
+
+async function loadClients(){
+  listNote.textContent = 'Carregando...';
+  clientsTable.hidden = true;
+  try{
+    const res = await fetch('/api/admin/list-clients', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ adminPassword })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      listNote.textContent = data.error || 'Erro ao carregar.';
+      return;
+    }
+    clientsBody.innerHTML = '';
+    (data.clients || []).forEach(c=>{
+      const tr = document.createElement('tr');
+      const date = c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '—';
+      tr.innerHTML = `<td>${c.name}</td><td>${c.password}</td><td>${date}</td>`;
+      clientsBody.appendChild(tr);
+    });
+    listNote.textContent = data.clients.length ? '' : 'Nenhum cliente cadastrado ainda.';
+    clientsTable.hidden = false;
+  }catch(err){
+    listNote.textContent = 'Não consegui conectar ao servidor.';
+  }
+}
+refreshBtn.addEventListener('click', loadClients);
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { verifyToken } from './_verifyToken.js';
+import { kvGet } from './_kv.js';
 
 const SYSTEM_PROMPT = `Você é um entrevistador especializado em descobrir a identidade ("DNA") de
 empresas para orientar projetos de arquitetura corporativa. Você trabalha
@@ -128,10 +129,19 @@ export default async function handler(req, res) {
 
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const session = token ? verifyToken(token) : null;
 
-  if (!token || !verifyToken(token)) {
+  if (!session) {
     return res.status(401).json({ error: 'Sessão expirada. Recarregue a página e faça login novamente.' });
   }
+
+  let clientRecord = null;
+  try {
+    clientRecord = await kvGet(`client:${session.clientSlug}`);
+  } catch (err) {
+    console.error('Erro ao buscar dados do cliente:', err);
+  }
+  const clientName = clientRecord?.name || session.clientSlug;
 
   const { messages } = req.body || {};
 
@@ -185,7 +195,7 @@ export default async function handler(req, res) {
 
     if (resumoInterno) {
       // Dispara o e-mail em segundo plano; não atrasa nem depende disso a resposta ao cliente
-      sendSummaryEmail(resumoInterno).catch((err) =>
+      sendSummaryEmail(resumoInterno, clientName).catch((err) =>
         console.error('Falha ao enviar e-mail de resumo:', err)
       );
     }
@@ -197,7 +207,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function sendSummaryEmail(resumo) {
+async function sendSummaryEmail(resumo, clientName) {
   const { GMAIL_USER, GMAIL_APP_PASSWORD, ARCHITECT_EMAIL } = process.env;
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
     console.error('E-mail não configurado (GMAIL_USER / GMAIL_APP_PASSWORD ausentes). Resumo:\n', resumo);
@@ -213,7 +223,7 @@ async function sendSummaryEmail(resumo) {
   await transporter.sendMail({
     from: GMAIL_USER,
     to: ARCHITECT_EMAIL || GMAIL_USER,
-    subject: 'Novo briefing de cliente — Mold Arq',
-    text: resumo,
+    subject: `Novo briefing de cliente — ${clientName}`,
+    text: `Cliente: ${clientName}\n\n${resumo}`,
   });
 }
