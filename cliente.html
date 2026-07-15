@@ -20,7 +20,7 @@
   .topbar a.back{font-size:.85rem;color:#a9a6a0;text-decoration:none}
   .topbar a.back:hover{color:var(--gelo)}
   main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
-  .wrap{width:100%;max-width:640px}
+  .wrap{width:100%;max-width:680px}
   .head{text-align:center;margin-bottom:28px}
   .eyebrow{display:inline-block;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--musgo-7);margin-bottom:8px}
   h2{font-size:1.6rem;margin-bottom:8px}
@@ -41,10 +41,17 @@
   .client-note{min-height:1.2em;font-size:.88rem;margin-top:12px;color:#e8a7a7}
   .formnote{margin-top:16px;font-size:.82rem;color:#a9a6a0}
 
-  .client-chat{border:1px solid var(--line);background:rgba(247,246,244,.04);display:flex;flex-direction:column;height:min(78vh,680px);overflow:hidden}
-  .client-chat-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--line);flex-shrink:0}
-  .client-chat-head b{display:block;color:var(--gelo);font-size:1.05rem}
-  .client-chat-head span{display:block;font-size:.82rem;color:#a9a6a0;margin-top:2px}
+  .track-tabs{display:flex;gap:2px;flex-shrink:0;background:rgba(0,0,0,.2);padding:4px}
+  .track-tab{flex:1;font-family:'DM Sans';font-weight:600;font-size:.85rem;padding:.7em .6em;border:none;background:transparent;color:#a9a6a0;cursor:pointer}
+  .track-tab.active{background:var(--musgo);color:var(--gelo)}
+  .track-tab:not(.active):hover{background:rgba(247,246,244,.06);color:var(--gelo)}
+
+  .client-chat{border:1px solid var(--line);background:rgba(247,246,244,.04);display:flex;flex-direction:column;height:min(80vh,720px);overflow:hidden}
+  .client-chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line);flex-shrink:0;flex-wrap:wrap}
+  .client-chat-head b{display:block;color:var(--gelo);font-size:1.02rem}
+  .client-chat-head span{display:block;font-size:.8rem;color:#a9a6a0;margin-top:2px}
+  .client-chat-head .btn-row{display:flex;gap:6px;flex-wrap:wrap}
+  .client-chat-head .btn-ghost{padding:.55em .9em;font-size:.78rem}
   .client-chat-body{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
   .chat-msg{max-width:80%;padding:.8em 1em;font-size:.95rem;line-height:1.5;border:1px solid var(--line)}
   .chat-msg.from-ai{align-self:flex-start;background:rgba(247,246,244,.06);color:var(--gelo);border-top-left-radius:0}
@@ -65,6 +72,7 @@
     .client-login-row{flex-direction:column}
     main{padding:16px}
     .client-chat{height:85vh}
+    .track-tab{font-size:.78rem;padding:.65em .4em}
   }
 </style>
 </head>
@@ -80,7 +88,7 @@
     <div class="head" id="clientHead">
       <span class="eyebrow">Restrito</span>
       <h2>Área do Cliente</h2>
-      <p class="lead">Entre com a senha que enviamos para começar a entrevista guiada que vai definir o DNA do seu espaço. Leva de 15 a 25 minutos — se precisar parar no meio, é só voltar depois e continuar de onde parou, usando a mesma senha. Se tiver anexado algum arquivo, use o botão "Salvar e pausar" antes de fechar a aba.</p>
+      <p class="lead">Entre com a senha que enviamos para começar a entrevista guiada que vai definir o DNA do seu espaço. São duas etapas: identidade da empresa e levantamento técnico — pode responder as duas, ou dividir com outra pessoa (o time de TI, por exemplo), usando a mesma senha. Leva de 15 a 25 minutos por etapa. Se precisar parar no meio, é só voltar depois que a conversa continua de onde parou. Se tiver anexado algum arquivo, use o botão "Salvar e pausar" antes de fechar a aba.</p>
     </div>
 
     <!-- Tela de login -->
@@ -96,14 +104,18 @@
 
     <!-- Painel de chat (some até autenticar) -->
     <div class="client-chat" id="clientChat" hidden>
+      <div class="track-tabs" id="trackTabs">
+        <button type="button" class="track-tab active" data-track="identity">🧬 DNA da Empresa</button>
+        <button type="button" class="track-tab" data-track="technical">🔧 Levantamento Técnico</button>
+      </div>
       <div class="client-chat-head">
         <div>
-          <b class="dm">Entrevista de Briefing</b>
+          <b class="dm" id="chatTitle">Entrevista de Briefing</b>
           <span>Converse à vontade — não existe resposta errada. Tempo médio: 15 a 25 minutos.</span>
         </div>
-        <div style="display:flex;gap:8px;flex-shrink:0">
-          <button type="button" class="btn btn-ghost" id="clientPauseBtn" style="padding:.6em 1.1em;font-size:.85rem">💾 Salvar e pausar</button>
-          <button type="button" class="btn btn-ghost" id="clientLogoutBtn" style="padding:.6em 1.1em;font-size:.85rem">Sair</button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-ghost" id="clientPauseBtn">💾 Salvar e pausar</button>
+          <button type="button" class="btn btn-ghost" id="clientLogoutBtn">Sair</button>
         </div>
       </div>
       <div class="client-chat-body" id="clientChatBody" role="log" aria-live="polite"></div>
@@ -143,11 +155,16 @@ const clientFileInput = document.getElementById('clientFileInput');
 const clientAttachBtn = document.getElementById('clientAttachBtn');
 const clientAttachChip = document.getElementById('clientAttachChip');
 const clientAttachNote = document.getElementById('clientAttachNote');
+const trackTabs = document.getElementById('trackTabs');
+const chatTitle = document.getElementById('chatTitle');
+
+const TRACK_LABELS = { identity: 'DNA da Empresa', technical: 'Levantamento Técnico' };
 
 let sessionToken = sessionStorage.getItem('moldarq_session') || null;
-let chatHistory = []; // histórico completo, no formato que a API do Claude espera
+let currentTrack = 'identity';
+let chatHistory = []; // histórico da aba atual, no formato que a API do Claude espera
 let pendingFile = null; // arquivo escolhido, ainda não enviado
-let emailAttachments = []; // arquivos já enviados na conversa, guardados só para irem no e-mail final
+let emailAttachments = []; // arquivos já enviados na conversa atual, guardados só para irem no e-mail final
 
 const MAX_FILE_MB = 4;
 
@@ -192,22 +209,32 @@ function addChatMsg(text, from){
   return div;
 }
 
+function resetTrackUI(){
+  chatHistory = [];
+  pendingFile = null;
+  emailAttachments = [];
+  clientFileInput.value = '';
+  clientAttachChip.hidden = true;
+  clientAttachBtn.hidden = true;
+  clientAttachNote.hidden = true;
+  clientChatBody.innerHTML = '';
+  chatTitle.textContent = 'Entrevista — ' + TRACK_LABELS[currentTrack];
+}
+
 async function startChatScreen(existingMessages){
   clientHead.hidden = true;
   clientLogin.hidden = true;
   clientChat.hidden = false;
-  clientChatBody.innerHTML = '';
 
   if(existingMessages && existingMessages.length > 0){
-    // Retomando uma conversa salva — reconstrói as mensagens na tela
+    // Retomando uma conversa salva desta aba — reconstrói as mensagens na tela
     chatHistory = existingMessages.map(m => ({ role: m.role, content: m.content }));
     existingMessages.forEach(m => {
       addChatMsg(m.content, m.role === 'user' ? 'user' : 'ai');
     });
   } else {
-    // Conversa nova — a primeira pergunta também vem de uma chamada real à
-    // IA (não é mais um texto fixo), para que o histórico tenha contexto
-    // completo desde o início e a IA saiba a que a primeira resposta se refere.
+    // Conversa nova nesta aba — a primeira pergunta também vem de uma
+    // chamada real à IA, para manter o contexto completo desde o início.
     chatHistory = [];
     const pending = addChatMsg('Digitando...', 'ai');
     pending.classList.add('pending');
@@ -230,7 +257,7 @@ async function loadConversationAndStart(){
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + sessionToken
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({ track: currentTrack })
     });
     const data = await res.json();
     if(res.status === 401){
@@ -242,10 +269,26 @@ async function loadConversationAndStart(){
     }
     await startChatScreen(data.messages || []);
   }catch(err){
-    // Se não conseguir buscar o histórico, ainda assim libera a conversa (começa do zero)
     await startChatScreen([]);
   }
 }
+
+function updateTabButtons(){
+  trackTabs.querySelectorAll('.track-tab').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.track === currentTrack);
+  });
+}
+
+trackTabs.querySelectorAll('.track-tab').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const track = btn.dataset.track;
+    if(track === currentTrack) return;
+    currentTrack = track;
+    updateTabButtons();
+    resetTrackUI();
+    await loadConversationAndStart();
+  });
+});
 
 async function doClientLogin(){
   const password = clientPass.value.trim();
@@ -265,6 +308,9 @@ async function doClientLogin(){
     }
     sessionToken = data.token;
     sessionStorage.setItem('moldarq_session', sessionToken);
+    currentTrack = 'identity';
+    updateTabButtons();
+    resetTrackUI();
     await loadConversationAndStart();
   }catch(err){
     clientLoginNote.textContent = 'Não consegui conectar ao servidor. Verifique sua internet e tente de novo.';
@@ -313,10 +359,11 @@ clientPauseBtn.addEventListener('click', async ()=>{
 
 // Se o navegador ainda tem uma sessão válida guardada (ex: usuário atualizou a página), retoma direto
 if(sessionToken){
+  resetTrackUI();
   loadConversationAndStart();
 }
 
-async function sendMessageToAI(userText, file){
+async function sendMessageToAI(userText, file, finalize){
   let messageContent = userText;
 
   if(file){
@@ -336,7 +383,7 @@ async function sendMessageToAI(userText, file){
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + sessionToken
     },
-    body: JSON.stringify({ messages: chatHistory })
+    body: JSON.stringify({ messages: chatHistory, track: currentTrack, finalize: !!finalize })
   });
 
   const data = await res.json();
@@ -368,6 +415,9 @@ async function sendMessageToAI(userText, file){
   if(data.askDocument){
     clientAttachBtn.hidden = false;
     clientAttachNote.hidden = false;
+  } else {
+    clientAttachBtn.hidden = true;
+    clientAttachNote.hidden = true;
   }
 
   // Quando a conversa chega ao fim, manda os arquivos anexados (se houver)
@@ -407,11 +457,6 @@ clientChatForm.addEventListener('submit', async (e)=>{
     const reply = await sendMessageToAI(text, file);
     pending.remove();
     addChatMsg(reply, 'ai');
-    if(file){
-      // Depois de enviar o arquivo, esconde o clipe até a IA pedir outro documento
-      clientAttachBtn.hidden = true;
-      clientAttachNote.hidden = true;
-    }
   }catch(err){
     pending.remove();
     addChatMsg(err.message || 'Não consegui responder agora. Tente novamente em instantes.', 'ai');
