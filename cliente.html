@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Área do Cliente — Mold Arq</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --concreto:#E8E4DF;--grafite:#2C2C2C;--musgo:#5C7A6B;--musgo-7:#7a9986;--gelo:#F7F6F4;
+    --grafite-900:#1d1d1d;--line:rgba(247,246,244,.16);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--grafite-900);color:var(--gelo);font-family:'Inter',system-ui,sans-serif;line-height:1.6;display:flex;flex-direction:column}
+  h1,h2,b.dm{font-family:'DM Sans',sans-serif;letter-spacing:-.01em}
+  .topbar{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .topbar .brand{font-family:'DM Sans';font-weight:700;font-size:1.05rem;color:var(--gelo);text-decoration:none}
+  .topbar a.back{font-size:.85rem;color:#a9a6a0;text-decoration:none}
+  .topbar a.back:hover{color:var(--gelo)}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+  .wrap{width:100%;max-width:640px}
+  .head{text-align:center;margin-bottom:28px}
+  .eyebrow{display:inline-block;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--musgo-7);margin-bottom:8px}
+  h2{font-size:1.6rem;margin-bottom:8px}
+  .lead{color:#cfccc6;font-size:.95rem}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+
+  .client-login{border:1px solid var(--line);background:rgba(247,246,244,.04);padding:clamp(24px,4vw,34px)}
+  .client-login label{display:block;font-size:.82rem;font-weight:600;font-family:'DM Sans';color:var(--gelo);margin-bottom:8px}
+  .client-login-row{display:flex;gap:10px}
+  .client-login-row input{flex:1;font-family:'Inter';font-size:1rem;padding:.85em 1em;border:1.5px solid rgba(247,246,244,.26);background:rgba(247,246,244,.06);color:var(--gelo)}
+  .client-login-row input::placeholder{color:#a9a6a0}
+  .client-login-row input:focus{outline:2px solid var(--musgo);outline-offset:1px}
+  .btn{font-family:'DM Sans';font-weight:600;font-size:.9rem;padding:.85em 1.4em;border:1.5px solid var(--gelo);background:var(--gelo);color:var(--grafite-900);cursor:pointer}
+  .btn:hover{background:var(--musgo);border-color:var(--musgo);color:var(--gelo)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn-ghost{background:transparent;border-color:rgba(247,246,244,.4);color:var(--gelo)}
+  .btn-ghost:hover{background:rgba(247,246,244,.1)}
+  .client-note{min-height:1.2em;font-size:.88rem;margin-top:12px;color:#e8a7a7}
+  .formnote{margin-top:16px;font-size:.82rem;color:#a9a6a0}
+
+  .client-chat{border:1px solid var(--line);background:rgba(247,246,244,.04);display:flex;flex-direction:column;height:min(78vh,680px)}
+  .client-chat-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--line)}
+  .client-chat-head b{display:block;color:var(--gelo);font-size:1.05rem}
+  .client-chat-head span{display:block;font-size:.82rem;color:#a9a6a0;margin-top:2px}
+  .client-chat-body{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+  .chat-msg{max-width:80%;padding:.8em 1em;font-size:.95rem;line-height:1.5;border:1px solid var(--line)}
+  .chat-msg.from-ai{align-self:flex-start;background:rgba(247,246,244,.06);color:var(--gelo);border-top-left-radius:0}
+  .chat-msg.from-user{align-self:flex-end;background:var(--musgo);color:var(--gelo);border-color:var(--musgo);border-top-right-radius:0}
+  .chat-msg.pending{opacity:.6}
+  .client-attach-chip{margin:0 22px;padding:8px 12px;background:rgba(92,122,107,.18);border:1px solid rgba(92,122,107,.4);color:var(--gelo);font-size:.85rem;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .client-attach-chip button{background:none;border:none;color:var(--gelo);cursor:pointer;font-size:.9rem;text-decoration:underline;padding:0}
+  .client-attach-note{padding:8px 22px 0;font-size:.8rem;color:var(--musgo-7)}
+  .client-chat-form{display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--line);align-items:flex-end}
+  .btn-attach{flex:0 0 auto;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;background:rgba(247,246,244,.06);border:1.5px solid rgba(247,246,244,.26);color:var(--gelo);cursor:pointer}
+  .btn-attach:hover{background:rgba(247,246,244,.14)}
+  .client-chat-form textarea{flex:1;resize:none;max-height:120px;font-family:'Inter';font-size:.96rem;padding:.75em 1em;border:1.5px solid rgba(247,246,244,.26);background:rgba(247,246,244,.06);color:var(--gelo)}
+  .client-chat-form textarea:focus{outline:2px solid var(--musgo);outline-offset:1px}
+  .client-chat-form textarea::placeholder{color:#a9a6a0}
+  [hidden]{display:none !important}
+
+  @media(max-width:680px){
+    .client-login-row{flex-direction:column}
+    main{padding:16px}
+    .client-chat{height:85vh}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">MOLD ARQ</span>
+  <a class="back" href="index.html">← Voltar ao site</a>
+</div>
+
+<main>
+  <div class="wrap">
+    <div class="head" id="clientHead">
+      <span class="eyebrow">Restrito</span>
+      <h2>Área do Cliente</h2>
+      <p class="lead">Entre com a senha que enviamos para começar a entrevista guiada que vai definir o DNA do seu espaço.</p>
+    </div>
+
+    <!-- Tela de login -->
+    <div class="client-login" id="clientLogin">
+      <label for="clientPass">Senha de acesso</label>
+      <div class="client-login-row">
+        <input type="password" id="clientPass" autocomplete="current-password" placeholder="Digite sua senha">
+        <button type="button" class="btn" id="clientLoginBtn">Entrar</button>
+      </div>
+      <p class="client-note" id="clientLoginNote"></p>
+      <p class="formnote">Não recebeu sua senha ou está com dificuldade para acessar? <a href="https://wa.me/5511950392021" target="_blank" rel="noopener" style="color:var(--musgo-7)">Fale com a gente no WhatsApp</a>.</p>
+    </div>
+
+    <!-- Painel de chat (some até autenticar) -->
+    <div class="client-chat" id="clientChat" hidden>
+      <div class="client-chat-head">
+        <div>
+          <b class="dm">Entrevista de Briefing</b>
+          <span>Converse à vontade — não existe resposta errada.</span>
+        </div>
+        <button type="button" class="btn btn-ghost" id="clientLogoutBtn" style="padding:.6em 1.1em;font-size:.85rem">Sair</button>
+      </div>
+      <div class="client-chat-body" id="clientChatBody" role="log" aria-live="polite"></div>
+      <div class="client-attach-chip" id="clientAttachChip" hidden></div>
+      <p class="client-attach-note" id="clientAttachNote" hidden>📎 Pode anexar o arquivo usando o clipe aqui embaixo.</p>
+      <form class="client-chat-form" id="clientChatForm">
+        <input type="file" id="clientFileInput" accept=".pdf,.jpg,.jpeg,.png" hidden>
+        <button type="button" class="btn-attach" id="clientAttachBtn" title="Anexar PDF ou imagem" hidden>📎</button>
+        <label for="clientChatInput" class="sr-only">Mensagem</label>
+        <textarea id="clientChatInput" placeholder="Escreva sua resposta..." rows="1"></textarea>
+        <button type="submit" class="btn">Enviar</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script>
+/*
+  Esta página fala com o backend real do site (pasta /api). Ela não guarda
+  nenhuma senha nem chave aqui no navegador — tudo isso fica protegido no
+  servidor (Vercel).
+*/
+
+const clientHead = document.getElementById('clientHead');
+const clientLogin = document.getElementById('clientLogin');
+const clientChat = document.getElementById('clientChat');
+const clientPass = document.getElementById('clientPass');
+const clientLoginBtn = document.getElementById('clientLoginBtn');
+const clientLoginNote = document.getElementById('clientLoginNote');
+const clientLogoutBtn = document.getElementById('clientLogoutBtn');
+const clientChatBody = document.getElementById('clientChatBody');
+const clientChatForm = document.getElementById('clientChatForm');
+const clientChatInput = document.getElementById('clientChatInput');
+const clientChatSubmitBtn = clientChatForm.querySelector('button[type="submit"]');
+const clientFileInput = document.getElementById('clientFileInput');
+const clientAttachBtn = document.getElementById('clientAttachBtn');
+const clientAttachChip = document.getElementById('clientAttachChip');
+const clientAttachNote = document.getElementById('clientAttachNote');
+
+let sessionToken = sessionStorage.getItem('moldarq_session') || null;
+let chatHistory = []; // histórico completo, no formato que a API do Claude espera
+let pendingFile = null; // arquivo escolhido, ainda não enviado
+let emailAttachments = []; // arquivos já enviados na conversa, guardados só para irem no e-mail final
+
+const MAX_FILE_MB = 4;
+
+clientAttachBtn.addEventListener('click', ()=> clientFileInput.click());
+
+clientFileInput.addEventListener('change', ()=>{
+  const file = clientFileInput.files[0];
+  if(!file) return;
+  if(file.size > MAX_FILE_MB * 1024 * 1024){
+    alert('Esse arquivo passa de ' + MAX_FILE_MB + 'MB. Tenta um arquivo menor.');
+    clientFileInput.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    pendingFile = { filename: file.name, mediaType: file.type || 'application/pdf', base64 };
+    clientAttachChip.hidden = false;
+    clientAttachChip.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = '📎 ' + file.name;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = 'remover';
+    removeBtn.addEventListener('click', ()=>{
+      pendingFile = null;
+      clientAttachChip.hidden = true;
+      clientFileInput.value = '';
+    });
+    clientAttachChip.appendChild(span);
+    clientAttachChip.appendChild(removeBtn);
+  };
+  reader.readAsDataURL(file);
+});
+
+function addChatMsg(text, from){
+  const div = document.createElement('div');
+  div.className = 'chat-msg from-' + from;
+  div.textContent = text;
+  clientChatBody.appendChild(div);
+  clientChatBody.scrollTop = clientChatBody.scrollHeight;
+  return div;
+}
+
+function startChatScreen(){
+  clientHead.hidden = true;
+  clientLogin.hidden = true;
+  clientChat.hidden = false;
+  if(chatHistory.length === 0){
+    clientChatBody.innerHTML = '';
+    addChatMsg('Olá! Que bom ter você aqui. Vamos conversar um pouco sobre a sua empresa para entender o que faz vocês serem quem são — isso vai guiar todo o projeto do espaço. Para começar: se a empresa de vocês fosse um lugar que não é um escritório (uma casa, uma loja, um restaurante), que lugar seria? E por quê?', 'ai');
+  }
+}
+
+async function doClientLogin(){
+  const password = clientPass.value.trim();
+  if(!password) return;
+  clientLoginBtn.disabled = true;
+  clientLoginNote.textContent = '';
+  try{
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      clientLoginNote.textContent = data.error || 'Não foi possível entrar. Tente novamente.';
+      return;
+    }
+    sessionToken = data.token;
+    sessionStorage.setItem('moldarq_session', sessionToken);
+    startChatScreen();
+  }catch(err){
+    clientLoginNote.textContent = 'Não consegui conectar ao servidor. Verifique sua internet e tente de novo.';
+  }finally{
+    clientLoginBtn.disabled = false;
+  }
+}
+clientLoginBtn.addEventListener('click', doClientLogin);
+clientPass.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doClientLogin(); } });
+
+clientLogoutBtn.addEventListener('click', ()=>{
+  sessionToken = null;
+  chatHistory = [];
+  sessionStorage.removeItem('moldarq_session');
+  clientChat.hidden = true;
+  clientHead.hidden = false;
+  clientLogin.hidden = false;
+  clientPass.value = '';
+  clientLoginNote.textContent = '';
+});
+
+// Se o navegador ainda tem uma sessão válida guardada (ex: usuário atualizou a página), retoma direto
+if(sessionToken){
+  startChatScreen();
+}
+
+async function sendMessageToAI(userText, file){
+  let messageContent = userText;
+
+  if(file){
+    const blockType = file.mediaType.startsWith('image/') ? 'image' : 'document';
+    messageContent = [
+      { type: blockType, source: { type: 'base64', media_type: file.mediaType, data: file.base64 } },
+      { type: 'text', text: userText || 'Segue o arquivo.' }
+    ];
+    emailAttachments.push({ filename: file.filename, mediaType: file.mediaType, base64: file.base64 });
+  }
+
+  chatHistory.push({ role: 'user', content: messageContent });
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + sessionToken
+    },
+    body: JSON.stringify({ messages: chatHistory })
+  });
+
+  const data = await res.json();
+
+  if(res.status === 401){
+    sessionToken = null;
+    sessionStorage.removeItem('moldarq_session');
+    clientChat.hidden = true;
+    clientHead.hidden = false;
+    clientLogin.hidden = false;
+    clientLoginNote.textContent = data.error || 'Sua sessão expirou. Faça login novamente.';
+    throw new Error('sessão expirada');
+  }
+
+  if(!res.ok){
+    throw new Error(data.error || 'Erro ao falar com a IA.');
+  }
+
+  if(file){
+    chatHistory[chatHistory.length - 1] = {
+      role: 'user',
+      content: (userText ? userText + ' ' : '') + '[arquivo anexado: ' + file.filename + ']'
+    };
+  }
+
+  chatHistory.push({ role: 'assistant', content: data.reply });
+
+  // Só libera o botão de anexar quando a IA sinaliza que está pedindo um documento
+  if(data.askDocument){
+    clientAttachBtn.hidden = false;
+    clientAttachNote.hidden = false;
+  }
+
+  // Quando a conversa chega ao fim, manda os arquivos anexados (se houver)
+  // num e-mail separado — só acontece essa única vez, não a cada mensagem
+  if(data.conversationEnded && emailAttachments.length > 0){
+    fetch('/api/send-attachments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionToken
+      },
+      body: JSON.stringify({ attachments: emailAttachments })
+    }).catch(()=>{});
+    emailAttachments = [];
+  }
+
+  return data.reply;
+}
+
+clientChatForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const text = clientChatInput.value.trim();
+  const file = pendingFile;
+  if(!text && !file) return;
+
+  const displayText = file ? (text ? text + '  📎 ' + file.filename : '📎 ' + file.filename) : text;
+  addChatMsg(displayText, 'user');
+  clientChatInput.value = '';
+  clientChatInput.style.height = 'auto';
+  pendingFile = null;
+  clientFileInput.value = '';
+  clientAttachChip.hidden = true;
+  clientChatSubmitBtn.disabled = true;
+  const pending = addChatMsg('Digitando...', 'ai');
+  pending.classList.add('pending');
+  try{
+    const reply = await sendMessageToAI(text, file);
+    pending.remove();
+    addChatMsg(reply, 'ai');
+  }catch(err){
+    pending.remove();
+    addChatMsg(err.message || 'Não consegui responder agora. Tente novamente em instantes.', 'ai');
+  }finally{
+    clientChatSubmitBtn.disabled = false;
+  }
+});
+clientChatInput.addEventListener('input', function(){
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>
