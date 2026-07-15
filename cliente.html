@@ -192,7 +192,7 @@ function addChatMsg(text, from){
   return div;
 }
 
-function startChatScreen(existingMessages){
+async function startChatScreen(existingMessages){
   clientHead.hidden = true;
   clientLogin.hidden = true;
   clientChat.hidden = false;
@@ -205,8 +205,20 @@ function startChatScreen(existingMessages){
       addChatMsg(m.content, m.role === 'user' ? 'user' : 'ai');
     });
   } else {
+    // Conversa nova — a primeira pergunta também vem de uma chamada real à
+    // IA (não é mais um texto fixo), para que o histórico tenha contexto
+    // completo desde o início e a IA saiba a que a primeira resposta se refere.
     chatHistory = [];
-    addChatMsg('Olá! Que bom ter você aqui. Vamos conversar um pouco sobre a sua empresa para entender o que faz vocês serem quem são — isso vai guiar todo o projeto do espaço. Para começar: se a empresa de vocês fosse um lugar que não é um escritório (uma casa, uma loja, um restaurante), que lugar seria? E por quê?', 'ai');
+    const pending = addChatMsg('Digitando...', 'ai');
+    pending.classList.add('pending');
+    try{
+      const reply = await sendMessageToAI('Olá, já estou pronto para começar.', null);
+      pending.remove();
+      addChatMsg(reply, 'ai');
+    }catch(err){
+      pending.remove();
+      addChatMsg('Não consegui começar a conversa agora. Atualize a página e tente de novo.', 'ai');
+    }
   }
 }
 
@@ -228,10 +240,10 @@ async function loadConversationAndStart(){
       clientHead.hidden = false;
       return;
     }
-    startChatScreen(data.messages || []);
+    await startChatScreen(data.messages || []);
   }catch(err){
     // Se não conseguir buscar o histórico, ainda assim libera a conversa (começa do zero)
-    startChatScreen([]);
+    await startChatScreen([]);
   }
 }
 
