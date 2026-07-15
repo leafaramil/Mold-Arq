@@ -16,10 +16,10 @@ interpretar os padrões que aparecem nas respostas.
 Os documentos não são perguntados juntos, nem logo de cara. Siga esta ordem:
 
 1. Primeiro, dedique 2 a 3 mensagens só às perguntas de identidade (Passo 1) antes de tocar em qualquer documento — deixe a conversa esquentar primeiro.
-2. Depois disso, em UMA mensagem isolada (sem nenhuma outra pergunta junto), pergunte apenas sobre o manual/regulamento do condomínio ou prédio (normas técnicas, horário de obra, restrições de fachada, cargas, etc.).
-3. Só bem mais adiante na conversa (depois de mais perguntas de identidade), em OUTRA mensagem isolada, pergunte apenas sobre o brandbook ou manual de marca da empresa.
+2. Depois disso, em UMA mensagem isolada (sem nenhuma outra pergunta junto), pergunte apenas sobre o manual/regulamento do condomínio ou prédio (normas técnicas, horário de obra, restrições de fachada, cargas, etc.). Avise nessa mesma mensagem que vai abrir um campo logo abaixo para anexar o arquivo, e inclua o marcador [[PEDIR_ANEXO]] em qualquer lugar do texto dessa mensagem (ele não aparece pro cliente, é só um sinal técnico para o sistema).
+3. Só bem mais adiante na conversa (depois de mais perguntas de identidade), em OUTRA mensagem isolada, pergunte apenas sobre o brandbook ou manual de marca da empresa. Da mesma forma, avise que o campo de anexo vai estar disponível e inclua o marcador [[PEDIR_ANEXO]] nessa mensagem também.
 
-Nunca pergunte os dois documentos na mesma mensagem, mesmo em formato de lista. Cada um merece seu próprio momento na conversa.
+Nunca pergunte os dois documentos na mesma mensagem, mesmo em formato de lista. Cada um merece seu próprio momento na conversa. O marcador [[PEDIR_ANEXO]] só deve aparecer nas mensagens em que você está especificamente pedindo um desses dois documentos — nunca em outras mensagens.
 
 Se o cliente enviar algum desses documentos:
 - Do manual do condomínio, extraia e liste **restrições técnicas obrigatórias** (o que é proibido/limitado).
@@ -197,8 +197,10 @@ export default async function handler(req, res) {
     // Separa o resumo interno (que só o arquiteto deve ver) do texto que vai para o cliente
     const match = fullText.match(/<<<RESUMO_INTERNO>>>([\s\S]*?)<<<FIM_RESUMO_INTERNO>>>/);
     const resumoInterno = match ? match[1].trim() : null;
+    const askDocument = /\[\[PEDIR_ANEXO\]\]/.test(fullText);
     const textoParaCliente = fullText
       .replace(/<<<RESUMO_INTERNO>>>[\s\S]*?<<<FIM_RESUMO_INTERNO>>>/, '')
+      .replace(/\[\[PEDIR_ANEXO\]\]/g, '')
       .trim();
 
     if (resumoInterno) {
@@ -212,6 +214,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       reply: textoParaCliente || 'Obrigado! Já anotei tudo por aqui.',
       conversationEnded: !!resumoInterno,
+      askDocument,
     });
   } catch (err) {
     console.error('Erro inesperado em /api/chat:', err);
@@ -239,8 +242,8 @@ function buildTranscript(messages) {
       text = parts.filter(Boolean).join(' ');
     }
 
-    // Remove o bloco de resumo interno da transcrição (isso já vai numa seção separada do e-mail)
-    text = text.replace(/<<<RESUMO_INTERNO>>>[\s\S]*?<<<FIM_RESUMO_INTERNO>>>/, '').trim();
+    // Remove o bloco de resumo interno e o marcador de anexo da transcrição
+    text = text.replace(/<<<RESUMO_INTERNO>>>[\s\S]*?<<<FIM_RESUMO_INTERNO>>>/, '').replace(/\[\[PEDIR_ANEXO\]\]/g, '').trim();
 
     if (text) lines.push(`${label}: ${text}`);
   }
