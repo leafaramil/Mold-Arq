@@ -80,7 +80,7 @@
     <div class="head" id="clientHead">
       <span class="eyebrow">Restrito</span>
       <h2>Área do Cliente</h2>
-      <p class="lead">Entre com a senha que enviamos para começar a entrevista guiada que vai definir o DNA do seu espaço.</p>
+      <p class="lead">Entre com a senha que enviamos para começar a entrevista guiada que vai definir o DNA do seu espaço. Leva de 15 a 25 minutos — se precisar parar no meio, é só voltar depois e continuar de onde parou, usando a mesma senha. Se tiver anexado algum arquivo, use o botão "Salvar e pausar" antes de fechar a aba.</p>
     </div>
 
     <!-- Tela de login -->
@@ -99,9 +99,12 @@
       <div class="client-chat-head">
         <div>
           <b class="dm">Entrevista de Briefing</b>
-          <span>Converse à vontade — não existe resposta errada.</span>
+          <span>Converse à vontade — não existe resposta errada. Tempo médio: 15 a 25 minutos.</span>
         </div>
-        <button type="button" class="btn btn-ghost" id="clientLogoutBtn" style="padding:.6em 1.1em;font-size:.85rem">Sair</button>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button type="button" class="btn btn-ghost" id="clientPauseBtn" style="padding:.6em 1.1em;font-size:.85rem">💾 Salvar e pausar</button>
+          <button type="button" class="btn btn-ghost" id="clientLogoutBtn" style="padding:.6em 1.1em;font-size:.85rem">Sair</button>
+        </div>
       </div>
       <div class="client-chat-body" id="clientChatBody" role="log" aria-live="polite"></div>
       <div class="client-attach-chip" id="clientAttachChip" hidden></div>
@@ -131,6 +134,7 @@ const clientPass = document.getElementById('clientPass');
 const clientLoginBtn = document.getElementById('clientLoginBtn');
 const clientLoginNote = document.getElementById('clientLoginNote');
 const clientLogoutBtn = document.getElementById('clientLogoutBtn');
+const clientPauseBtn = document.getElementById('clientPauseBtn');
 const clientChatBody = document.getElementById('clientChatBody');
 const clientChatForm = document.getElementById('clientChatForm');
 const clientChatInput = document.getElementById('clientChatInput');
@@ -188,13 +192,46 @@ function addChatMsg(text, from){
   return div;
 }
 
-function startChatScreen(){
+function startChatScreen(existingMessages){
   clientHead.hidden = true;
   clientLogin.hidden = true;
   clientChat.hidden = false;
-  if(chatHistory.length === 0){
-    clientChatBody.innerHTML = '';
+  clientChatBody.innerHTML = '';
+
+  if(existingMessages && existingMessages.length > 0){
+    // Retomando uma conversa salva — reconstrói as mensagens na tela
+    chatHistory = existingMessages.map(m => ({ role: m.role, content: m.content }));
+    existingMessages.forEach(m => {
+      addChatMsg(m.content, m.role === 'user' ? 'user' : 'ai');
+    });
+  } else {
+    chatHistory = [];
     addChatMsg('Olá! Que bom ter você aqui. Vamos conversar um pouco sobre a sua empresa para entender o que faz vocês serem quem são — isso vai guiar todo o projeto do espaço. Para começar: se a empresa de vocês fosse um lugar que não é um escritório (uma casa, uma loja, um restaurante), que lugar seria? E por quê?', 'ai');
+  }
+}
+
+async function loadConversationAndStart(){
+  try{
+    const res = await fetch('/api/resume', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionToken
+      },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if(res.status === 401){
+      sessionToken = null;
+      sessionStorage.removeItem('moldarq_session');
+      clientLogin.hidden = false;
+      clientHead.hidden = false;
+      return;
+    }
+    startChatScreen(data.messages || []);
+  }catch(err){
+    // Se não conseguir buscar o histórico, ainda assim libera a conversa (começa do zero)
+    startChatScreen([]);
   }
 }
 
@@ -216,7 +253,7 @@ async function doClientLogin(){
     }
     sessionToken = data.token;
     sessionStorage.setItem('moldarq_session', sessionToken);
-    startChatScreen();
+    await loadConversationAndStart();
   }catch(err){
     clientLoginNote.textContent = 'Não consegui conectar ao servidor. Verifique sua internet e tente de novo.';
   }finally{
@@ -237,9 +274,34 @@ clientLogoutBtn.addEventListener('click', ()=>{
   clientLoginNote.textContent = '';
 });
 
+clientPauseBtn.addEventListener('click', async ()=>{
+  const original = clientPauseBtn.textContent;
+  clientPauseBtn.disabled = true;
+  clientPauseBtn.textContent = 'Salvando...';
+  try{
+    if(emailAttachments.length > 0){
+      await fetch('/api/send-attachments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({ attachments: emailAttachments })
+      });
+      emailAttachments = [];
+    }
+    addChatMsg('Conversa salva! Pode fechar essa aba tranquilo — quando quiser continuar, é só entrar de novo com a mesma senha (você mesmo ou qualquer colega que tenha ela) que a gente retoma exatamente daqui.', 'ai');
+  }catch(err){
+    addChatMsg('A conversa em texto já está salva automaticamente a cada mensagem. Não consegui confirmar o envio dos arquivos anexados agora — se puder, tenta de novo em instantes antes de fechar a aba.', 'ai');
+  }finally{
+    clientPauseBtn.disabled = false;
+    clientPauseBtn.textContent = original;
+  }
+});
+
 // Se o navegador ainda tem uma sessão válida guardada (ex: usuário atualizou a página), retoma direto
 if(sessionToken){
-  startChatScreen();
+  loadConversationAndStart();
 }
 
 async function sendMessageToAI(userText, file){
@@ -333,6 +395,11 @@ clientChatForm.addEventListener('submit', async (e)=>{
     const reply = await sendMessageToAI(text, file);
     pending.remove();
     addChatMsg(reply, 'ai');
+    if(file){
+      // Depois de enviar o arquivo, esconde o clipe até a IA pedir outro documento
+      clientAttachBtn.hidden = true;
+      clientAttachNote.hidden = true;
+    }
   }catch(err){
     pending.remove();
     addChatMsg(err.message || 'Não consegui responder agora. Tente novamente em instantes.', 'ai');
