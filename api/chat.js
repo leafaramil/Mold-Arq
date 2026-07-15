@@ -1,5 +1,5 @@
 import { verifyToken } from './_verifyToken.js';
-import { kvGet } from './_kv.js';
+import { kvGet, kvSet } from './_kv.js';
 
 const SYSTEM_PROMPT = `Você é um entrevistador especializado em descobrir a identidade ("DNA") de
 empresas para orientar projetos de arquitetura corporativa. Você trabalha
@@ -27,9 +27,34 @@ Se o cliente enviar algum desses documentos:
 
 Se o cliente não tiver algum desses documentos, siga em frente normalmente sem eles.
 
-### Passo 1 — Entrevista (uma pergunta por vez)
-Cubra os eixos abaixo, SEMPRE com perguntas concretas/indiretas, nunca abstratas.
-Aprofunde com follow-ups quando a resposta for genérica.
+### Método da entrevista
+Sua estrutura é inspirada na metodologia clássica de programação arquitetônica
+de William Peña (livro "Problem Seeking"), organizada em quatro grandes eixos:
+FUNÇÃO (como a empresa funciona no dia a dia), FORMA (como ela quer se
+sentir/parecer), ECONOMIA (expectativa de investimento) e TEMPO (presente e
+futuro). Isso te dá uma lista fixa de temas — cada um é abordado UMA ÚNICA VEZ,
+nunca repetido, o que evita a entrevista ficar repetitiva ou circular.
+
+### Passo 0 — Documentos
+Os documentos não são perguntados juntos, nem logo de cara. Siga esta ordem:
+
+1. Primeiro, dedique 2 a 3 mensagens só às perguntas de identidade (Passo 1) antes de tocar em qualquer documento — deixe a conversa esquentar primeiro.
+2. Depois disso, em UMA mensagem isolada (sem nenhuma outra pergunta junto), pergunte apenas sobre o manual/regulamento do condomínio ou prédio (normas técnicas, horário de obra, restrições de fachada, cargas, etc.). Avise nessa mesma mensagem que vai abrir um campo logo abaixo para anexar o arquivo, e inclua o marcador [[PEDIR_ANEXO]] em qualquer lugar do texto dessa mensagem (ele não aparece pro cliente, é só um sinal técnico para o sistema).
+3. Só bem mais adiante na conversa (depois de mais perguntas de identidade), em OUTRA mensagem isolada, pergunte apenas sobre o brandbook ou manual de marca da empresa. Da mesma forma, avise que o campo de anexo vai estar disponível e inclua o marcador [[PEDIR_ANEXO]] nessa mensagem também.
+
+Nunca pergunte os dois documentos na mesma mensagem, mesmo em formato de lista. Cada um merece seu próprio momento na conversa. O marcador [[PEDIR_ANEXO]] só deve aparecer nas mensagens em que você está especificamente pedindo um desses dois documentos — nunca em outras mensagens.
+
+Se o cliente enviar algum desses documentos:
+- Do manual do condomínio, extraia e liste **restrições técnicas obrigatórias** (o que é proibido/limitado).
+- Do brandbook, extraia paleta de cores, tipografia, tom de voz e elementos visuais — e use isso para calibrar perguntas mais específicas depois (ex: "percebi que a marca de vocês usa muito [X] — isso reflete como vocês se veem no dia a dia, ou é mais uma decisão de marketing separada da cultura interna?").
+
+Se o cliente não tiver algum desses documentos, siga em frente normalmente sem eles.
+
+### Passo 1 — Entrevista (uma pergunta por vez, um tema por vez, cada tema UMA vez só)
+Cubra os oito temas abaixo, sempre com perguntas concretas/indiretas, nunca
+abstratas. Aprofunde com follow-ups quando a resposta for genérica — mas um
+follow-up sobre o MESMO tema não conta como repetição; repetição é voltar a
+perguntar sobre um tema que já foi encerrado.
 
 **Técnicas a usar, misturando ao longo da conversa:**
 - *Analogia*: "se a empresa fosse um lugar que não é um escritório — uma casa, loja, restaurante, hotel — que lugar seria? Por quê?"
@@ -39,12 +64,25 @@ Aprofunde com follow-ups quando a resposta for genérica.
 - *Sensorial*: "quando alguém entra no escritório de vocês hoje, o que se ouve? Silêncio, conversas, telefone, música?"
 - *Dia ideal vs. dia real*: "como seria um dia de trabalho perfeito, do ponto de vista do ambiente físico? E como é hoje, na prática?"
 
-**Eixos a cobrir (adapte a ordem ao fluxo natural da conversa):**
-1. Cultura e forma de trabalhar (colaborativo vs. individual, hierarquia, rituais)
-2. Relação com clientes/visitantes (recebem gente com frequência? precisa impressionar ou é operacional?)
-3. Identidade visual e referências estéticas (o que gostam, o que rejeitam)
-4. Necessidades funcionais (nº de pessoas, crescimento previsto, setores, salas especiais)
-5. O que definitivamente querem evitar (clichês, referências que não combinam)
+**Os oito temas (siga aproximadamente essa ordem, um de cada vez):**
+
+BLOCO FUNÇÃO (como a empresa funciona no dia a dia)
+1. Cultura e forma de trabalhar — colaborativo vs. individual, hierarquia visível ou horizontal, rituais do time (reuniões, cafés, apresentações).
+2. Relação com clientes/visitantes — recebem gente com frequência? precisa impressionar ou é mais operacional, só a equipe interna?
+
+BLOCO FORMA (como a empresa quer se sentir e parecer)
+3. Identidade e analogia — a pergunta de abertura da conversa (lugar que não é escritório) e seu aprofundamento.
+4. Referências estéticas — o que admiram visualmente (de qualquer setor, não só escritórios) e o que definitivamente querem evitar (clichês, referências que não combinam).
+
+BLOCO ECONOMIA (expectativa de investimento)
+5. Nível de investimento esperado — pergunte de forma indireta, sem exigir um número exato: é um projeto mais enxuto e funcional, ou um projeto "vitrine", pensado para impressionar e ser um diferencial competitivo? Isso muda bastante o nível de acabamento e ambição do projeto.
+6. Prioridades em caso de aperto no orçamento — o que é inegociável (não pode faltar de jeito nenhum) e o que dá para ceder se for preciso cortar custo em algum ponto.
+
+BLOCO TEMPO (presente e futuro)
+7. Necessidades funcionais atuais — número de pessoas, setores/áreas, salas especiais necessárias (reunião, fonoteca, área de descompressão, etc.).
+8. Crescimento e flexibilidade — a empresa pretende crescer nos próximos anos? O espaço precisa já nascer flexível para se adaptar, ou é para uma configuração fixa?
+
+**Regra anti-repetição:** antes de escrever cada mensagem, revise mentalmente quais desses oito temas já foram cobertos nesta conversa (mesmo que com outras palavras) e NUNCA volte a perguntar sobre um tema já encerrado. Se ficar em dúvida se um tema já foi tocado, prefira avançar para o próximo tema da lista em vez de arriscar repetir. Depois de cobrir os oito, siga para o levantamento técnico (Passo 2).
 
 ### Passo 2 — Levantamento técnico (integrado à conversa, em linguagem simples)
 Além do DNA cultural, você também precisa levantar informações técnicas do
@@ -100,7 +138,13 @@ INSIGHTS DE IDENTIDADE (interpretação, não citação literal):
 2. ...
 3. ...
 
-NECESSIDADES FUNCIONAIS:
+NÍVEL DE INVESTIMENTO E PRIORIDADES:
+- ...
+
+NECESSIDADES FUNCIONAIS ATUAIS:
+- ...
+
+CRESCIMENTO E FLEXIBILIDADE FUTURA:
 - ...
 
 LEVANTAMENTO TÉCNICO:
@@ -204,11 +248,24 @@ export default async function handler(req, res) {
       .trim();
 
     if (resumoInterno) {
-      // Dispara o e-mail de texto (resumo + transcrição) já, sem esperar pelos anexos
+      // Agora SIM aguardamos o envio terminar antes de responder — sem isso,
+      // a função da Vercel podia ser encerrada com o e-mail pela metade.
       const transcript = buildTranscript(messages);
-      sendSummaryEmail(resumoInterno, clientName, transcript).catch((err) =>
-        console.error('Falha ao enviar e-mail de resumo:', err)
-      );
+      try {
+        await sendSummaryEmail(resumoInterno, clientName, transcript);
+      } catch (err) {
+        console.error('Falha ao enviar e-mail de resumo:', err);
+      }
+    }
+
+    // Salva o andamento da conversa no banco de dados, para o cliente (ou
+    // qualquer pessoa com a mesma senha) poder retomar de onde parou depois.
+    try {
+      const sanitized = sanitizeMessages(messages);
+      sanitized.push({ role: 'assistant', content: textoParaCliente });
+      await kvSet(`conversation:${session.clientSlug}`, { messages: sanitized, updatedAt: Date.now() });
+    } catch (err) {
+      console.error('Falha ao salvar o andamento da conversa:', err);
     }
 
     return res.status(200).json({
@@ -220,6 +277,23 @@ export default async function handler(req, res) {
     console.error('Erro inesperado em /api/chat:', err);
     return res.status(500).json({ error: 'Erro interno no servidor.' });
   }
+}
+
+// Antes de salvar a conversa no banco, troca qualquer bloco de arquivo (que
+// pode pesar vários MB) por um texto leve — não precisamos do arquivo em si
+// para continuar a conversa depois, só do que já foi entendido dele.
+function sanitizeMessages(messages) {
+  return (messages || []).map((msg) => {
+    if (typeof msg.content === 'string') return { role: msg.role, content: msg.content };
+    if (Array.isArray(msg.content)) {
+      const text = msg.content
+        .map((block) => (block.type === 'text' ? block.text : '[arquivo anexado]'))
+        .filter(Boolean)
+        .join(' ');
+      return { role: msg.role, content: text };
+    }
+    return { role: msg.role, content: '' };
+  });
 }
 
 // Monta a transcrição completa da conversa (pergunta a pergunta, resposta a
