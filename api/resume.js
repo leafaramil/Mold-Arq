@@ -14,12 +14,14 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Sessão expirada.' });
   }
 
+  const { track: rawTrack } = req.body || {};
+  const track = rawTrack === 'technical' ? 'technical' : 'identity';
+
   try {
-    const stored = await kvGet(`conversation:${session.clientSlug}`);
+    const stored = await kvGet(`conversation:${session.clientSlug}:${track}`);
     return res.status(200).json({ messages: stored?.messages || [] });
   } catch (err) {
     console.error('Erro ao buscar conversa salva:', err);
-    // Não trava o login por causa disso — só começa uma conversa nova
     return res.status(200).json({ messages: [] });
   }
 }
