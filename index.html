@@ -242,7 +242,12 @@ textarea{resize:vertical;min-height:104px}
 .chat-msg.from-ai{align-self:flex-start;background:rgba(247,246,244,.06);color:var(--gelo);border-top-left-radius:0}
 .chat-msg.from-user{align-self:flex-end;background:var(--musgo);color:var(--gelo);border-color:var(--musgo);border-top-right-radius:0}
 .chat-msg.pending{opacity:.6}
-.client-chat-form{display:flex;gap:10px;padding:16px 22px;border-top:1px solid rgba(247,246,244,.14)}
+.client-chat-form{display:flex;gap:10px;padding:16px 22px;border-top:1px solid rgba(247,246,244,.14);align-items:flex-end}
+.btn-attach{flex:0 0 auto;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;background:rgba(247,246,244,.06);border:1.5px solid rgba(247,246,244,.26);color:var(--gelo);cursor:pointer}
+.btn-attach:hover{background:rgba(247,246,244,.14)}
+.client-attach-chip{margin:0 22px;padding:8px 12px;background:rgba(92,122,107,.18);border:1px solid rgba(92,122,107,.4);color:var(--gelo);font-size:.85rem;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.client-attach-chip button{background:none;border:none;color:var(--gelo);cursor:pointer;font-size:.9rem;text-decoration:underline;padding:0}
+.client-attach-note{padding:0 22px 14px;font-size:.78rem;color:#a9a6a0}
 .client-chat-form textarea{flex:1;resize:none;max-height:120px;font-family:'Inter';font-size:.96rem;padding:.75em 1em;border:1.5px solid rgba(247,246,244,.26);background:rgba(247,246,244,.06);color:var(--gelo)}
 .client-chat-form textarea:focus{outline:2px solid var(--musgo);outline-offset:1px}
 .client-chat-form textarea::placeholder{color:#a9a6a0}
@@ -576,11 +581,15 @@ src="https://www.facebook.com/tr?id=1520246163453499&ev=PageView&noscript=1"
         <button type="button" class="btn btn-ghost" id="clientLogoutBtn" style="padding:.6em 1.1em;font-size:.85rem">Sair</button>
       </div>
       <div class="client-chat-body" id="clientChatBody" role="log" aria-live="polite"></div>
+      <div class="client-attach-chip" id="clientAttachChip" hidden></div>
       <form class="client-chat-form" id="clientChatForm">
+        <input type="file" id="clientFileInput" accept=".pdf,.jpg,.jpeg,.png" hidden>
+        <button type="button" class="btn-attach" id="clientAttachBtn" title="Anexar PDF ou imagem">📎</button>
         <label for="clientChatInput" class="sr-only">Mensagem</label>
-        <textarea id="clientChatInput" placeholder="Escreva sua resposta..." rows="1" required></textarea>
+        <textarea id="clientChatInput" placeholder="Escreva sua resposta..." rows="1"></textarea>
         <button type="submit" class="btn btn-primary">Enviar</button>
       </form>
+      <p class="client-attach-note">Pode anexar o manual do condomínio ou o brandbook em PDF ou imagem (até 4MB) usando o clipe acima.</p>
     </div>
   </div>
 </section>
@@ -674,9 +683,48 @@ const clientChatBody = document.getElementById('clientChatBody');
 const clientChatForm = document.getElementById('clientChatForm');
 const clientChatInput = document.getElementById('clientChatInput');
 const clientChatSubmitBtn = clientChatForm.querySelector('button[type="submit"]');
+const clientFileInput = document.getElementById('clientFileInput');
+const clientAttachBtn = document.getElementById('clientAttachBtn');
+const clientAttachChip = document.getElementById('clientAttachChip');
 
 let sessionToken = sessionStorage.getItem('moldarq_session') || null;
 let chatHistory = []; // histórico completo, no formato que a API do Claude espera
+let pendingFile = null; // arquivo escolhido, ainda não enviado
+let emailAttachments = []; // arquivos já enviados na conversa, guardados só para irem no e-mail final
+
+const MAX_FILE_MB = 4;
+
+clientAttachBtn.addEventListener('click', ()=> clientFileInput.click());
+
+clientFileInput.addEventListener('change', ()=>{
+  const file = clientFileInput.files[0];
+  if(!file) return;
+  if(file.size > MAX_FILE_MB * 1024 * 1024){
+    alert('Esse arquivo passa de ' + MAX_FILE_MB + 'MB. Tenta um arquivo menor.');
+    clientFileInput.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    pendingFile = { filename: file.name, mediaType: file.type || 'application/pdf', base64 };
+    clientAttachChip.hidden = false;
+    clientAttachChip.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = '📎 ' + file.name;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = 'remover';
+    removeBtn.addEventListener('click', ()=>{
+      pendingFile = null;
+      clientAttachChip.hidden = true;
+      clientFileInput.value = '';
+    });
+    clientAttachChip.appendChild(span);
+    clientAttachChip.appendChild(removeBtn);
+  };
+  reader.readAsDataURL(file);
+});
 
 function addChatMsg(text, from){
   const div = document.createElement('div');
@@ -741,8 +789,19 @@ if(sessionToken){
   startChatScreen();
 }
 
-async function sendMessageToAI(userText){
-  chatHistory.push({ role: 'user', content: userText });
+async function sendMessageToAI(userText, file){
+  let messageContent = userText;
+
+  if(file){
+    const blockType = file.mediaType.startsWith('image/') ? 'image' : 'document';
+    messageContent = [
+      { type: blockType, source: { type: 'base64', media_type: file.mediaType, data: file.base64 } },
+      { type: 'text', text: userText || 'Segue o arquivo.' }
+    ];
+    emailAttachments.push({ filename: file.filename, mediaType: file.mediaType, base64: file.base64 });
+  }
+
+  chatHistory.push({ role: 'user', content: messageContent });
 
   const res = await fetch('/api/chat', {
     method: 'POST',
@@ -769,22 +828,52 @@ async function sendMessageToAI(userText){
     throw new Error(data.error || 'Erro ao falar com a IA.');
   }
 
+  // Depois de enviado, troca o conteúdo pesado (base64) por um texto leve no
+  // histórico, para não reenviar o arquivo inteiro pra IA a cada nova mensagem
+  if(file){
+    chatHistory[chatHistory.length - 1] = {
+      role: 'user',
+      content: (userText ? userText + ' ' : '') + '[arquivo anexado: ' + file.filename + ']'
+    };
+  }
+
   chatHistory.push({ role: 'assistant', content: data.reply });
+
+  // Quando a conversa chega ao fim, manda os arquivos anexados (se houver)
+  // num e-mail separado — só acontece essa única vez, não a cada mensagem
+  if(data.conversationEnded && emailAttachments.length > 0){
+    fetch('/api/send-attachments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + sessionToken
+      },
+      body: JSON.stringify({ attachments: emailAttachments })
+    }).catch(()=>{ /* silencioso: o resumo em texto já foi enviado de qualquer forma */ });
+    emailAttachments = [];
+  }
+
   return data.reply;
 }
 
 clientChatForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   const text = clientChatInput.value.trim();
-  if(!text) return;
-  addChatMsg(text, 'user');
+  const file = pendingFile;
+  if(!text && !file) return;
+
+  const displayText = file ? (text ? text + '  📎 ' + file.filename : '📎 ' + file.filename) : text;
+  addChatMsg(displayText, 'user');
   clientChatInput.value = '';
   clientChatInput.style.height = 'auto';
+  pendingFile = null;
+  clientFileInput.value = '';
+  clientAttachChip.hidden = true;
   clientChatSubmitBtn.disabled = true;
   const pending = addChatMsg('Digitando...', 'ai');
   pending.classList.add('pending');
   try{
-    const reply = await sendMessageToAI(text);
+    const reply = await sendMessageToAI(text, file);
     pending.remove();
     addChatMsg(reply, 'ai');
   }catch(err){
