@@ -68,7 +68,7 @@
       <button type="button" id="refreshBtn">Atualizar lista</button>
       <p class="note" id="listNote"></p>
       <table id="clientsTable" hidden>
-        <thead><tr><th>Cliente</th><th>Senha</th><th>Criado em</th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Senha</th><th>Criado em</th><th></th></tr></thead>
         <tbody id="clientsBody"></tbody>
       </table>
     </div>
@@ -189,13 +189,39 @@ async function loadClients(){
     (data.clients || []).forEach(c=>{
       const tr = document.createElement('tr');
       const date = c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '—';
-      tr.innerHTML = `<td>${c.name}</td><td>${c.password}</td><td>${date}</td>`;
+      tr.innerHTML = `<td>${c.name}</td><td>${c.password}</td><td>${date}</td><td></td>`;
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.textContent = 'Excluir';
+      delBtn.style.cssText = 'font-size:.78rem;padding:.4em .8em;background:transparent;border:1px solid #b23b3b;color:#b23b3b;cursor:pointer';
+      delBtn.addEventListener('click', ()=> deleteClient(c.slug, c.name));
+      tr.lastElementChild.appendChild(delBtn);
       clientsBody.appendChild(tr);
     });
     listNote.textContent = data.clients.length ? '' : 'Nenhum cliente cadastrado ainda.';
     clientsTable.hidden = false;
   }catch(err){
     listNote.textContent = 'Não consegui conectar ao servidor.';
+  }
+}
+
+async function deleteClient(slug, name){
+  const confirmed = confirm('Excluir "' + name + '"? A senha dele para de funcionar imediatamente e a conversa salva (se houver) também é apagada. Essa ação não pode ser desfeita.');
+  if(!confirmed) return;
+  try{
+    const res = await fetch('/api/admin/delete-client', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ adminPassword, slug })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      alert(data.error || 'Erro ao excluir.');
+      return;
+    }
+    loadClients();
+  }catch(err){
+    alert('Não consegui conectar ao servidor.');
   }
 }
 refreshBtn.addEventListener('click', loadClients);
