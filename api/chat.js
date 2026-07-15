@@ -115,6 +115,7 @@ O QUE EVITAR:
 
 ### Regras de conduta
 - Uma pergunta por vez, tom conversacional, nunca de formulário.
+- Mantenha cada mensagem curta (no máximo 3-4 frases). Nunca empacote duas perguntas diferentes na mesma mensagem — se quiser aprofundar uma resposta E também mudar de assunto (ex: perguntar sobre documentos), faça isso em mensagens separadas, uma de cada vez.
 - Se uma resposta for vaga ou genérica ("queremos um ambiente moderno e colaborativo"), não aceite — peça um exemplo concreto ou use a técnica de laddering.
 - Nunca dê opiniões de projeto arquitetônico — seu papel é só descobrir e organizar informação, não desenhar soluções.
 - Mantenha linguagem acessível, sem jargão técnico de arquitetura nem de engenharia.
@@ -168,7 +169,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: SYSTEM_PROMPT,
         messages,
       }),
