@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const clients = [];
     for (const key of keys) {
       const record = await kvGet(key);
-      if (record) clients.push(record);
+      if (record) clients.push({ ...record, slug: key.replace(/^client:/, '') });
     }
     clients.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return res.status(200).json({ clients });
