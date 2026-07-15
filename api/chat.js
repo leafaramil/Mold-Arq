@@ -13,13 +13,15 @@ através de perguntas concretas, sensoriais e projetivas, e depois
 interpretar os padrões que aparecem nas respostas.
 
 ### Passo 0 — Documentos
-Depois da primeira pergunta de abertura (a de identidade/analogia) e da resposta do cliente, use a SUA PRÓXIMA MENSAGEM (sozinha, sem nenhuma outra pergunta junto) para perguntar se o cliente tem para compartilhar:
-1. Manual/regulamento do condomínio ou prédio (normas técnicas, horários de obra, restrições de fachada, cargas, etc.)
-2. Brandbook ou manual de marca (se existir)
+Os documentos não são perguntados juntos, nem logo de cara. Siga esta ordem:
 
-Essa deve ser uma mensagem curta e isolada — não aproveite essa mensagem para também aprofundar a resposta anterior do cliente. Isso fica para a mensagem seguinte.
+1. Primeiro, dedique 2 a 3 mensagens só às perguntas de identidade (Passo 1) antes de tocar em qualquer documento — deixe a conversa esquentar primeiro.
+2. Depois disso, em UMA mensagem isolada (sem nenhuma outra pergunta junto), pergunte apenas sobre o manual/regulamento do condomínio ou prédio (normas técnicas, horário de obra, restrições de fachada, cargas, etc.).
+3. Só bem mais adiante na conversa (depois de mais perguntas de identidade), em OUTRA mensagem isolada, pergunte apenas sobre o brandbook ou manual de marca da empresa.
 
-Se o cliente enviar esses documentos:
+Nunca pergunte os dois documentos na mesma mensagem, mesmo em formato de lista. Cada um merece seu próprio momento na conversa.
+
+Se o cliente enviar algum desses documentos:
 - Do manual do condomínio, extraia e liste **restrições técnicas obrigatórias** (o que é proibido/limitado).
 - Do brandbook, extraia paleta de cores, tipografia, tom de voz e elementos visuais — e use isso para calibrar perguntas mais específicas depois (ex: "percebi que a marca de vocês usa muito [X] — isso reflete como vocês se veem no dia a dia, ou é mais uma decisão de marketing separada da cultura interna?").
 
@@ -119,6 +121,7 @@ O QUE EVITAR:
 - Uma pergunta por vez, tom conversacional, nunca de formulário.
 - REGRA RÍGIDA sobre uma pergunta por mensagem: cada mensagem sua deve conter **um único pedido de informação**, nada mais. Isso vale mesmo quando os dois assuntos parecem "rápidos" ou relacionados. Por exemplo: NÃO faça "antes de continuarmos, vocês têm o manual do condomínio? E voltando ao que você disse sobre X, me dá um exemplo..." — isso são DUAS perguntas na mesma mensagem, o que é proibido. Se você quer tanto aprofundar a resposta anterior quanto perguntar sobre os documentos, escolha UMA das duas para essa mensagem e deixe a outra para a próxima. Releia sua mensagem antes de enviar: se ela contém mais de um ponto de interrogação pedindo informações diferentes (não conta perguntas retóricas dentro do mesmo pedido), reescreva cortando uma delas.
 - Escreva sempre em português do Brasil correto e natural. Palavras já consagradas em português nesse contexto (como "brandbook", "briefing", "workshop", "layout") são normais e podem ser usadas — o que deve ser evitado é escrever a palavra errada por engano no meio de uma frase em português (ex: escrever "specific" quando o certo seria "específico"). Revise mentalmente a frase antes de enviar para evitar esse tipo de erro de digitação.
+- NUNCA use formatação markdown (nada de **negrito**, *itálico*, listas com hífen ou números, títulos com #, etc.). O chat do site exibe só texto puro, então qualquer símbolo desses apareceria literalmente na tela do cliente. Escreva tudo em frases corridas, normais, como uma pessoa digitando no WhatsApp. Se precisar listar duas coisas (como os dois documentos do Passo 0), escreva por extenso dentro da frase, não em lista numerada.
 - Mantenha cada mensagem curta (no máximo 3-4 frases).
 - Se uma resposta for vaga ou genérica ("queremos um ambiente moderno e colaborativo"), não aceite — peça um exemplo concreto ou use a técnica de laddering.
 - Nunca dê opiniões de projeto arquitetônico — seu papel é só descobrir e organizar informação, não desenhar soluções.
@@ -199,20 +202,52 @@ export default async function handler(req, res) {
       .trim();
 
     if (resumoInterno) {
-      // Dispara o e-mail em segundo plano; não atrasa nem depende disso a resposta ao cliente
-      sendSummaryEmail(resumoInterno, clientName).catch((err) =>
+      // Dispara o e-mail de texto (resumo + transcrição) já, sem esperar pelos anexos
+      const transcript = buildTranscript(messages);
+      sendSummaryEmail(resumoInterno, clientName, transcript).catch((err) =>
         console.error('Falha ao enviar e-mail de resumo:', err)
       );
     }
 
-    return res.status(200).json({ reply: textoParaCliente || 'Obrigado! Já anotei tudo por aqui.' });
+    return res.status(200).json({
+      reply: textoParaCliente || 'Obrigado! Já anotei tudo por aqui.',
+      conversationEnded: !!resumoInterno,
+    });
   } catch (err) {
     console.error('Erro inesperado em /api/chat:', err);
     return res.status(500).json({ error: 'Erro interno no servidor.' });
   }
 }
 
-async function sendSummaryEmail(resumo, clientName) {
+// Monta a transcrição completa da conversa (pergunta a pergunta, resposta a
+// resposta) direto a partir do histórico real — não depende da IA "lembrar"
+// certo, então é sempre fiel ao que foi realmente dito.
+function buildTranscript(messages) {
+  const lines = [];
+  for (const msg of messages || []) {
+    const label = msg.role === 'user' ? 'CLIENTE' : 'IA';
+    let text = '';
+
+    if (typeof msg.content === 'string') {
+      text = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      const parts = msg.content.map((block) => {
+        if (block.type === 'text') return block.text;
+        if (block.type === 'document' || block.type === 'image') return '[arquivo anexado]';
+        return '';
+      });
+      text = parts.filter(Boolean).join(' ');
+    }
+
+    // Remove o bloco de resumo interno da transcrição (isso já vai numa seção separada do e-mail)
+    text = text.replace(/<<<RESUMO_INTERNO>>>[\s\S]*?<<<FIM_RESUMO_INTERNO>>>/, '').trim();
+
+    if (text) lines.push(`${label}: ${text}`);
+  }
+  return lines.join('\n\n');
+}
+
+async function sendSummaryEmail(resumo, clientName, transcript, attachments) {
   const { GMAIL_USER, GMAIL_APP_PASSWORD, ARCHITECT_EMAIL } = process.env;
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
     console.error('E-mail não configurado (GMAIL_USER / GMAIL_APP_PASSWORD ausentes). Resumo:\n', resumo);
@@ -225,10 +260,24 @@ async function sendSummaryEmail(resumo, clientName) {
     auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
   });
 
+  const mailAttachments = (attachments || [])
+    .filter((a) => a && a.base64 && a.filename)
+    .map((a) => ({
+      filename: a.filename,
+      content: Buffer.from(a.base64, 'base64'),
+      contentType: a.mediaType || 'application/octet-stream',
+    }));
+
+  const bodyText =
+    `Cliente: ${clientName}\n\n` +
+    `===== O QUE USAR NO PROJETO (interpretação da IA) =====\n${resumo}\n\n` +
+    `===== TRANSCRIÇÃO COMPLETA DA CONVERSA =====\n${transcript || '(sem transcrição disponível)'}`;
+
   await transporter.sendMail({
     from: GMAIL_USER,
     to: ARCHITECT_EMAIL || GMAIL_USER,
     subject: `Novo briefing de cliente — ${clientName}`,
-    text: `Cliente: ${clientName}\n\n${resumo}`,
+    text: bodyText,
+    attachments: mailAttachments,
   });
 }
