@@ -2,7 +2,7 @@ import { verifyToken } from './_verifyToken.js';
 import { kvGet, kvSet } from './_kv.js';
 import { sendEmail } from './_mailer.js';
 
-const EMAIL_MOLD_ARQ = 'contato@moldarq.com.br';
+const EMAIL_MOLD_ARQ = 'atendimento@moldarq.com.br';
 
 const SHARED_RULES = `
 ### Regras de conduta (valem sempre)
