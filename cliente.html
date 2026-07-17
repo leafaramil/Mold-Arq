@@ -218,13 +218,34 @@ function resetTrackUI(){
   clientAttachBtn.hidden = true;
   clientAttachNote.hidden = true;
   clientChatBody.innerHTML = '';
+  clientChatForm.hidden = false;
+  clientPauseBtn.hidden = false;
   chatTitle.textContent = 'Entrevista — ' + TRACK_LABELS[currentTrack];
 }
 
-async function startChatScreen(existingMessages){
+async function startChatScreen(existingMessages, finished){
   clientHead.hidden = true;
   clientLogin.hidden = true;
   clientChat.hidden = false;
+
+  if(finished){
+    // Etapa já concluída — nunca mostra a conversa de novo, nem pra quem
+    // respondeu, nem pra outra pessoa que abrir com a mesma senha depois.
+    // Isso protege informação sensível de uma aba não vazar pra quem for
+    // preencher a outra.
+    chatHistory = [];
+    clientChatBody.innerHTML = '';
+    addChatMsg('Esta etapa já foi concluída — obrigado! As respostas já foram enviadas para a Mold Arq. Se precisar registrar mais alguma coisa, entre em contato pelo WhatsApp ou e-mail.', 'ai');
+    clientChatForm.hidden = true;
+    clientPauseBtn.hidden = true;
+    clientAttachBtn.hidden = true;
+    clientAttachNote.hidden = true;
+    clientAttachChip.hidden = true;
+    return;
+  }
+
+  clientChatForm.hidden = false;
+  clientPauseBtn.hidden = false;
 
   if(existingMessages && existingMessages.length > 0){
     // Retomando uma conversa salva desta aba — reconstrói as mensagens na tela
@@ -267,9 +288,9 @@ async function loadConversationAndStart(){
       clientHead.hidden = false;
       return;
     }
-    await startChatScreen(data.messages || []);
+    await startChatScreen(data.messages || [], data.finished);
   }catch(err){
-    await startChatScreen([]);
+    await startChatScreen([], false);
   }
 }
 
