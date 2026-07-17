@@ -19,9 +19,9 @@ export default async function handler(req, res) {
 
   try {
     const stored = await kvGet(`conversation:${session.clientSlug}:${track}`);
-    return res.status(200).json({ messages: stored?.messages || [] });
+    return res.status(200).json({ messages: stored?.messages || [], finished: !!stored?.finished });
   } catch (err) {
     console.error('Erro ao buscar conversa salva:', err);
-    return res.status(200).json({ messages: [] });
+    return res.status(200).json({ messages: [], finished: false });
   }
 }
