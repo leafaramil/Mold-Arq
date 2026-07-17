@@ -1,7 +1,8 @@
 import { verifyToken } from './_verifyToken.js';
 import { kvGet, kvSet } from './_kv.js';
+import { sendEmail } from './_mailer.js';
 
-const EMAIL_MOLD_ARQ = 'EMAIL-DA-MOLD-ARQ-AQUI'; // TODO Rafael: trocar pelo e-mail real assim que criar
+const EMAIL_MOLD_ARQ = 'contato@moldarq.com.br';
 
 const SHARED_RULES = `
 ### Regras de conduta (valem sempre)
@@ -563,27 +564,13 @@ function buildTranscript(sanitizedMessages) {
 }
 
 async function sendSummaryEmail(resumo, clientName, transcript, trackLabel) {
-  const { GMAIL_USER, GMAIL_APP_PASSWORD, ARCHITECT_EMAIL } = process.env;
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.error('E-mail não configurado (GMAIL_USER / GMAIL_APP_PASSWORD ausentes). Resumo:\n', resumo);
-    return;
-  }
-
-  const nodemailer = await import('nodemailer');
-  const transporter = nodemailer.default.createTransport({
-    service: 'gmail',
-    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-  });
-
   const bodyText =
     `Cliente: ${clientName}\n` +
     `Etapa: ${trackLabel}\n\n` +
     `===== O QUE USAR NO PROJETO (interpretação da IA) =====\n${resumo}\n\n` +
     `===== TRANSCRIÇÃO COMPLETA DA CONVERSA =====\n${transcript || '(sem transcrição disponível)'}`;
 
-  await transporter.sendMail({
-    from: GMAIL_USER,
-    to: ARCHITECT_EMAIL || GMAIL_USER,
+  await sendEmail({
     subject: `Novo briefing de cliente — ${clientName} (${trackLabel})`,
     text: bodyText,
   });
