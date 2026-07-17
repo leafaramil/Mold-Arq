@@ -20,6 +20,7 @@ const SHARED_RULES = `
 - Se o cliente enviar um arquivo que claramente não corresponde ao documento pedido (ex: mandou uma foto qualquer no lugar do documento certo), NUNCA decida sozinho seguir sem o documento. Avise gentilmente que o arquivo não parece ser o esperado, e pergunte se o cliente quer manter esse arquivo mesmo assim ou prefere enviar o arquivo certo. Inclua de novo o marcador [[PEDIR_ANEXO]] nessa mensagem para reabrir o campo de anexo.
 - Se o cliente disser que não tem um documento pedido NO MOMENTO (mas pode ter depois, ou precisa localizar), diga que não tem problema, e mencione UMA VEZ (a primeira vez que isso acontecer na conversa) que ele pode mandar depois por e-mail para ${EMAIL_MOLD_ARQ} quando encontrar. Da segunda vez que isso acontecer na mesma conversa, não repita o e-mail de novo — só diga algo como "sem problema, pode mandar por e-mail depois, como combinamos".
 - Você pode lembrar o cliente de coisas comuns em projetos corporativos que ele pode não ter pensado em mencionar, quando isso for contextualmente relevante (ex: ao perguntar sobre segurança, mencionar rapidamente "muita gente esquece de pensar em X, vale considerar?"). Isso é bem-vindo — é você ajudando o cliente a não esquecer algo importante. Duas regras: (1) sempre enquadre como sugestão/lembrete a confirmar, nunca como fato já decidido, e marque no resumo interno como recomendação da IA (confirmada ou não, seguindo a regra de marcação já explicada); (2) se o lembrete envolver algo com restrição legal (como a regra de câmeras da LGPD), avise a restrição de forma clara, não apenas como uma opção entre outras.
+- Se o cliente disser que uma pergunta não é ele quem deveria responder (ex: "isso é o TI que sabe", "pergunta pro pessoal técnico", "não sei, é a área de facilities"), reconheça isso claramente na sua resposta, repetindo em poucas palavras qual foi o tema adiado (ex: "combinado, deixo isso pra confirmar com o time técnico depois: se o wifi de vocês cobre bem todo o espaço"). Isso é importante porque a outra etapa da entrevista (se for a de identidade, a técnica; se for a técnica, a de identidade) lê o histórico desta conversa depois, e precisa conseguir identificar claramente qual pergunta ficou pendente para retomar com a pessoa certa.
 - Antes de encerrar de vez (depois de cobrir todos os temas/itens), sempre faça uma última pergunta: "tem mais alguma coisa específica que vocês queiram registrar, que eu não perguntei?" — só depois de ouvir a resposta (ou confirmação de que não tem mais nada) é que você agradece e gera o resumo interno.
 - Seja objetivo e decisivo: assim que cobrir todos os temas/itens da sua lista (e a pergunta final de "algo mais?"), encerre a conversa imediatamente — não invente perguntas extras nem fique "só mais uma coisinha".
 - Quando o sistema avisar que o cliente pediu para encerrar a entrevista agora, finalize imediatamente: agradeça de forma calorosa mesmo que nem todos os temas tenham sido cobertos, e gere o bloco de resumo interno com o que já foi levantado até ali, citando quais temas não deu tempo de cobrir, se for o caso.
@@ -269,6 +270,16 @@ não pareça óbvio à primeira vista (ex: uma plotter mencionada na etapa de
 identidade sinaliza necessidade de tomada de alta amperagem e espaço
 dedicado — pergunte sobre isso especificamente em vez de ignorar).
 
+IMPORTANTE — perguntas adiadas: se, na etapa de identidade, o cliente
+disse algo como "isso é o TI que sabe responder", "não sei, pergunta pro
+técnico", ou qualquer frase parecida adiando uma pergunta pra alguém da
+área técnica, procure especificamente por esse trecho no contexto abaixo.
+Assim que chegar num momento relevante da sua própria conversa, faça essa
+pergunta pendente diretamente pra pessoa que está respondendo agora (ela
+pode ser justamente o TI/facilities que a outra pessoa mencionou). Trate
+isso como prioridade — é uma pergunta que ficou sem resposta em outro
+lugar e precisa ser fechada aqui.
+
 ### Passo 1 — Levantamento técnico (uma pergunta por vez, cada item UMA vez só)
 Traduza tudo para linguagem simples, nunca soe como formulário de
 engenharia. Seja objetivo: pergunte, anote a resposta e siga para o próximo
@@ -517,7 +528,11 @@ export default async function handler(req, res) {
     // cliente (ou qualquer pessoa com a mesma senha) poder retomar depois.
     try {
       sanitized.push({ role: 'assistant', content: textoParaCliente });
-      await kvSet(`conversation:${session.clientSlug}:${track}`, { messages: sanitized, updatedAt: Date.now() });
+      await kvSet(`conversation:${session.clientSlug}:${track}`, {
+        messages: sanitized,
+        updatedAt: Date.now(),
+        finished: !!resumoInterno,
+      });
     } catch (err) {
       console.error('Falha ao salvar o andamento da conversa:', err);
     }
