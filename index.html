@@ -507,7 +507,7 @@ src="https://www.facebook.com/tr?id=1520246163453499&ev=PageView&noscript=1"
       <h3 class="dm">Canais diretos</h3>
       <div class="info-row"><b>WhatsApp</b><a href="https://wa.me/5511950392021" target="_blank" rel="noopener">+55 11 95039-2021</a></div>
       <div class="info-row"><b>Instagram</b><a href="https://www.instagram.com/mold_arq.arquitetura/" target="_blank" rel="noopener">@mold_arq.arquitetura</a></div>
-      <div class="info-row"><b>E-mail</b><a href="mailto:contato@moldarq.com.br">contato@moldarq.com.br</a></div>
+      <div class="info-row"><b>E-mail</b><a href="mailto:atendimento@moldarq.com.br">atendimento@moldarq.com.br</a></div>
       <div class="info-row"><b>Endereço</b><span>Av. José Moreira Filho, 34<br>Mogilar — Mogi das Cruzes, SP</span></div>
       <iframe class="mapph" title="Mapa — Mold Arq, Mogi das Cruzes" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;display:block" src="https://www.google.com/maps?q=Av.+Jos%C3%A9+Moreira+Filho,+34,+Mogilar,+Mogi+das+Cruzes+-+SP&output=embed"></iframe>
     </aside>
@@ -555,7 +555,7 @@ chips.forEach(c=>c.addEventListener('click',()=>{chips.forEach(x=>x.setAttribute
 // accordion
 document.querySelectorAll('.acc-q').forEach(q=>q.addEventListener('click',()=>{const a=q.nextElementSibling,open=q.getAttribute('aria-expanded')==='true';document.querySelectorAll('.acc-q').forEach(o=>{o.setAttribute('aria-expanded','false');o.nextElementSibling.style.maxHeight=null});if(!open){q.setAttribute('aria-expanded','true');a.style.maxHeight=a.scrollHeight+'px'}}));
 // form -> e-mail (FormSubmit) com resposta automática; reserva: WhatsApp
-const RAFAEL_EMAIL="contato@moldarq.com.br";
+const RAFAEL_EMAIL="atendimento@moldarq.com.br";
 const AUTORESP="Olá! Recebemos sua mensagem na Mold Arq e agradecemos o contato. Vamos analisar o que você enviou e retornar em breve. Se preferir agilizar, fale direto no WhatsApp: https://wa.me/5511950392021. — Mold Arq · Arquitetura Corporativa";
 const OK=document.getElementById('ok');
 function waMsg(f){return `Olá! Vim pelo site da Mold Arq e gostaria de conversar sobre o espaço da minha empresa.\n\nNome: ${f.nome.value}\nEmpresa: ${f.empresa.value}${f.cargo.value?' ('+f.cargo.value+')':''}\nContato: ${f.telefone.value} · ${f.email.value}\n\nPrincipal desafio com o espaço hoje: ${f.desafio.value}`}
