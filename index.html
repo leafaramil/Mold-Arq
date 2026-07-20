@@ -49,7 +49,7 @@
 html{scroll-behavior:smooth;scroll-padding-top:90px}
 body{background:var(--gelo);color:var(--grafite);font-family:'Inter',system-ui,sans-serif;font-size:clamp(16px,1.05vw,18px);line-height:1.65;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4,.dm{font-family:'DM Sans',sans-serif;line-height:1.08;letter-spacing:-.02em;color:var(--grafite)}
-img{max-width:100%;display:block}
+img{max-width:100%;height:auto;display:block}
 a{color:inherit;text-decoration:none}
 :focus-visible{outline:2px solid var(--musgo);outline-offset:2px}
 .skip{position:absolute;left:-999px;top:0;z-index:100;background:var(--grafite);color:var(--gelo);padding:10px 16px;font-weight:600}
@@ -142,7 +142,7 @@ header.nav.scrolled{border-color:var(--line-soft);box-shadow:0 1px 20px rgba(44,
 .chip[aria-pressed="true"]{background:var(--grafite);color:var(--gelo);border-color:var(--grafite)}
 .gallery{column-count:3;column-gap:16px}
 .g{position:relative;break-inside:avoid;margin-bottom:16px;overflow:hidden;border:1px solid var(--line);cursor:pointer}
-.g img{width:100%;transition:transform .55s var(--ease)}
+.g img{width:100%;height:auto;transition:transform .55s var(--ease)}
 .g:hover img{transform:scale(1.04)}
 .g figcaption{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(22,22,22,.74))}
 .g .gc{color:var(--gelo);font-family:'DM Sans';font-weight:600;font-size:.95rem}
@@ -218,8 +218,8 @@ textarea{resize:vertical;min-height:104px}
 footer{background:var(--concreto);border-top:1px solid var(--line)}
 .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:32px;padding-block:64px 0}
 .foot-brand{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.foot-brand .mark{height:40px}
-.foot-brand .wordf{height:33px}
+.foot-brand .mark{height:40px;width:auto}
+.foot-brand .wordf{height:33px;width:auto}
 .foot-grid h4{font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--musgo-7);margin-bottom:14px}
 .foot-grid a{display:block;font-size:.92rem;color:#56534d;padding:5px 0}
 .foot-grid a:hover{color:var(--grafite)}
