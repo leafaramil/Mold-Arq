@@ -166,6 +166,14 @@ let chatHistory = []; // histórico da aba atual, no formato que a API do Claude
 let pendingFile = null; // arquivo escolhido, ainda não enviado
 let emailAttachments = []; // arquivos já enviados na conversa atual, guardados só para irem no e-mail final
 
+// "Carimbo de validade" da aba atual: todo request assíncrono guarda o valor
+// de uiGeneration no momento em que foi disparado. Se o usuário trocar de
+// aba (ou deslogar) antes desse request voltar, uiGeneration muda, e a
+// resposta atrasada é descartada em vez de ser aplicada na tela errada (ou
+// pior, misturada no histórico da aba errada).
+let uiGeneration = 0;
+class StaleTrackError extends Error {}
+
 const MAX_FILE_MB = 4;
 
 clientAttachBtn.addEventListener('click', ()=> clientFileInput.click());
@@ -210,6 +218,7 @@ function addChatMsg(text, from){
 }
 
 function resetTrackUI(){
+  uiGeneration++; // invalida qualquer resposta que ainda esteja "a caminho" da aba anterior
   chatHistory = [];
   pendingFile = null;
   emailAttachments = [];
@@ -265,6 +274,9 @@ async function startChatScreen(existingMessages, finished){
       addChatMsg(reply, 'ai');
     }catch(err){
       pending.remove();
+      if(err instanceof StaleTrackError){
+        return; // usuário já trocou de aba de novo — não mexe em nada
+      }
       addChatMsg('Não consegui começar a conversa agora. Atualize a página e tente de novo.', 'ai');
     }
   }
@@ -343,6 +355,7 @@ clientLoginBtn.addEventListener('click', doClientLogin);
 clientPass.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doClientLogin(); } });
 
 clientLogoutBtn.addEventListener('click', ()=>{
+  uiGeneration++; // invalida qualquer resposta que ainda esteja a caminho
   sessionToken = null;
   chatHistory = [];
   sessionStorage.removeItem('moldarq_session');
@@ -385,6 +398,7 @@ if(sessionToken){
 }
 
 async function sendMessageToAI(userText, file, finalize){
+  const myGeneration = uiGeneration; // marca de qual aba/sessão este request pertence
   let messageContent = userText;
 
   // A IA só consegue "ler" esses formatos de imagem/documento. Formatos de
@@ -418,6 +432,13 @@ async function sendMessageToAI(userText, file, finalize){
   });
 
   const data = await res.json();
+
+  // Se o usuário já trocou de aba (ou deslogou) enquanto esse request estava
+  // em andamento, essa resposta não pertence mais à tela atual — descarta
+  // sem tocar no histórico nem na tela, em vez de aplicar na aba errada.
+  if(myGeneration !== uiGeneration){
+    throw new StaleTrackError('resposta chegou depois da troca de aba, descartada');
+  }
 
   if(res.status === 401){
     sessionToken = null;
@@ -465,6 +486,17 @@ async function sendMessageToAI(userText, file, finalize){
     emailAttachments = [];
   }
 
+  // A entrevista terminou de verdade agora — trava o campo de mensagem e os
+  // botões de anexo/pausa, pra não dar a impressão de que dá pra continuar
+  // conversando por aqui.
+  if(data.conversationEnded){
+    clientChatForm.hidden = true;
+    clientPauseBtn.hidden = true;
+    clientAttachBtn.hidden = true;
+    clientAttachNote.hidden = true;
+    clientAttachChip.hidden = true;
+  }
+
   return data.reply;
 }
 
@@ -490,6 +522,9 @@ clientChatForm.addEventListener('submit', async (e)=>{
     addChatMsg(reply, 'ai');
   }catch(err){
     pending.remove();
+    if(err instanceof StaleTrackError){
+      return; // usuário já trocou de aba de novo — não mexe em nada
+    }
     addChatMsg(err.message || 'Não consegui responder agora. Tente novamente em instantes.', 'ai');
   }finally{
     clientChatSubmitBtn.disabled = false;
@@ -498,6 +533,15 @@ clientChatForm.addEventListener('submit', async (e)=>{
 clientChatInput.addEventListener('input', function(){
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+clientChatInput.addEventListener('keydown', function(e){
+  // Enter sozinho envia a mensagem; Shift+Enter continua quebrando linha normalmente.
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    if(!clientChatSubmitBtn.disabled){
+      clientChatForm.requestSubmit();
+    }
+  }
 });
 </script>
 </body>
