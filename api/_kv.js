@@ -60,3 +60,16 @@ export async function kvKeys(pattern) {
   const data = await kvCommand(['KEYS', pattern]);
   return data.result || [];
 }
+
+// Incrementa um contador e, na primeira vez (contador === 1), define um
+// tempo de expiração pra chave — usado pelo rate limit (ver _rateLimit.js).
+// Assim a própria chave "some" sozinha depois da janela de tempo, sem
+// precisar de nenhuma limpeza manual.
+export async function kvIncrWithExpiry(key, windowSeconds) {
+  const incrData = await kvCommand(['INCR', key]);
+  const count = Number(incrData.result);
+  if (count === 1) {
+    await kvCommand(['EXPIRE', key, windowSeconds]);
+  }
+  return count;
+}
