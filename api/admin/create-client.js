@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { kvGet, kvSet } from '../_kv.js';
 import { isValidAdminPassword } from '../_verifyAdmin.js';
-import { isRateLimited } from '../_rateLimit.js';
+import { isRateLimited, registerFailedAttempt, clearRateLimit } from '../_rateLimit.js';
 
 function checkAdmin(req) {
   const { adminPassword } = req.body || {};
@@ -44,9 +44,11 @@ export default async function handler(req, res) {
   }
 
   if (!checkAdmin(req)) {
+    await registerFailedAttempt(req, 'login-admin');
     await new Promise((r) => setTimeout(r, 400));
     return res.status(401).json({ error: 'Senha de administrador incorreta.' });
   }
+  await clearRateLimit(req, 'login-admin');
 
   const { clientName } = req.body || {};
   if (!clientName || !clientName.trim()) {
