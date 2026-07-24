@@ -1,6 +1,6 @@
 import { createToken } from './_verifyToken.js';
 import { kvGet } from './_kv.js';
-import { isRateLimited } from './_rateLimit.js';
+import { isRateLimited, registerFailedAttempt, clearRateLimit } from './_rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -35,10 +35,12 @@ export default async function handler(req, res) {
 
   if (!clientSlug) {
     // Pequeno atraso proposital para dificultar tentativas automatizadas de adivinhar a senha
+    await registerFailedAttempt(req, 'login-cliente');
     await new Promise((r) => setTimeout(r, 400));
     return res.status(401).json({ error: 'Senha incorreta. Confira o que você recebeu ou fale com a gente no WhatsApp.' });
   }
 
+  await clearRateLimit(req, 'login-cliente');
   const token = createToken(clientSlug);
   return res.status(200).json({ token });
 }
