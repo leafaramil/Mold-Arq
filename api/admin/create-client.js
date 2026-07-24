@@ -1,9 +1,11 @@
 import crypto from 'crypto';
 import { kvGet, kvSet } from '../_kv.js';
+import { isValidAdminPassword } from '../_verifyAdmin.js';
+import { isRateLimited } from '../_rateLimit.js';
 
 function checkAdmin(req) {
   const { adminPassword } = req.body || {};
-  return !!process.env.ADMIN_SECRET && adminPassword === process.env.ADMIN_SECRET;
+  return isValidAdminPassword(adminPassword);
 }
 
 function slugify(name) {
@@ -21,7 +23,10 @@ function generatePassword() {
   const digits = '23456789'; // sem 0 e 1, evita confusão
   const pick = (chars, n) =>
     Array.from({ length: n }, () => chars[crypto.randomInt(chars.length)]).join('');
-  return pick(letters, 3) + pick(digits, 3);
+  // 4 letras + 4 dígitos (antes era 3+3): ainda fácil de ditar por telefone
+  // ou WhatsApp, mas com um espaço de combinações bem maior — dificulta
+  // tentativa de força bruta mesmo que o rate limit falhe por algum motivo.
+  return pick(letters, 4) + pick(digits, 4);
 }
 
 export default async function handler(req, res) {
@@ -32,6 +37,10 @@ export default async function handler(req, res) {
   if (!process.env.ADMIN_SECRET) {
     console.error('Falta a variável de ambiente ADMIN_SECRET');
     return res.status(500).json({ error: 'O servidor não está configurado corretamente.' });
+  }
+
+  if (await isRateLimited(req, 'login-admin')) {
+    return res.status(429).json({ error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' });
   }
 
   if (!checkAdmin(req)) {
