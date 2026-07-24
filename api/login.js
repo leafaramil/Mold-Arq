@@ -1,5 +1,6 @@
 import { createToken } from './_verifyToken.js';
 import { kvGet } from './_kv.js';
+import { isRateLimited } from './_rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -10,6 +11,13 @@ export default async function handler(req, res) {
   if (!SESSION_SECRET) {
     console.error('Falta a variável de ambiente SESSION_SECRET');
     return res.status(500).json({ error: 'O servidor não está configurado corretamente. Fale com o administrador do site.' });
+  }
+
+  // Bloqueia um IP que já tentou senhas demais numa janela curta de tempo —
+  // sem isso, o único obstáculo a um ataque de força bruta era o atraso de
+  // 400ms abaixo, que não impede nada se as tentativas forem paralelas.
+  if (await isRateLimited(req, 'login-cliente')) {
+    return res.status(429).json({ error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' });
   }
 
   const { password } = req.body || {};
