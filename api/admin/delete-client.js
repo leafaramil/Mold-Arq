@@ -1,6 +1,6 @@
 import { kvGet, kvDel } from '../_kv.js';
 import { isValidAdminPassword } from '../_verifyAdmin.js';
-import { isRateLimited } from '../_rateLimit.js';
+import { isRateLimited, registerFailedAttempt, clearRateLimit } from '../_rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,9 +15,11 @@ export default async function handler(req, res) {
   }
   const { adminPassword, slug } = req.body || {};
   if (!isValidAdminPassword(adminPassword)) {
+    await registerFailedAttempt(req, 'login-admin');
     await new Promise((r) => setTimeout(r, 400));
     return res.status(401).json({ error: 'Senha de administrador incorreta.' });
   }
+  await clearRateLimit(req, 'login-admin');
   if (!slug) {
     return res.status(400).json({ error: 'Faltou informar qual cliente excluir.' });
   }
