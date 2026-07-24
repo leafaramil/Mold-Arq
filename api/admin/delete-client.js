@@ -1,4 +1,7 @@
 import { kvGet, kvDel } from '../_kv.js';
+import { isValidAdminPassword } from '../_verifyAdmin.js';
+import { isRateLimited } from '../_rateLimit.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
@@ -7,8 +10,11 @@ export default async function handler(req, res) {
     console.error('Falta a variável de ambiente ADMIN_SECRET');
     return res.status(500).json({ error: 'O servidor não está configurado corretamente.' });
   }
+  if (await isRateLimited(req, 'login-admin')) {
+    return res.status(429).json({ error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' });
+  }
   const { adminPassword, slug } = req.body || {};
-  if (adminPassword !== process.env.ADMIN_SECRET) {
+  if (!isValidAdminPassword(adminPassword)) {
     await new Promise((r) => setTimeout(r, 400));
     return res.status(401).json({ error: 'Senha de administrador incorreta.' });
   }
