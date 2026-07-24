@@ -534,6 +534,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Esta conversa já está bem longa. Entre em contato direto pelo WhatsApp para continuar.' });
   }
 
+  // Antes existia essa trava só na tela (o campo de digitar ficava
+  // desabilitado quando a conversa já tinha sido concluída), mas nada
+  // impedia uma chamada direta a este endpoint de reabrir e sobrescrever um
+  // briefing já finalizado. Checa aqui também, do lado do servidor, que é
+  // quem realmente decide.
+  let existingRecord = null;
+  try {
+    existingRecord = await kvGet(`conversation:${session.clientSlug}:${track}`);
+  } catch (err) {
+    console.error('Erro ao checar se a conversa já foi finalizada:', err);
+  }
+  if (existingRecord?.finished) {
+    return res.status(409).json({ error: 'Essa etapa do briefing já foi concluída. Se precisar corrigir ou completar algo, fale com a Mold Arq.' });
+  }
+
   // A partir de AUTO_FINALIZE_AT mensagens, força o encerramento com resumo
   // em vez de deixar a conversa simplesmente travar em MAX_MESSAGES sem
   // nunca gerar o <<<RESUMO_INTERNO>>> nem disparar o e-mail — isso evita
