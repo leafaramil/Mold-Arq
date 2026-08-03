@@ -10,13 +10,27 @@ echo "  Briefing Arquitetônico — demo"
 echo "  ------------------------------"
 echo ""
 
-# 1. O Node.js está instalado?
+# 1. Achar o Node.js: instalado no sistema ou numa pasta portátil aqui do lado.
 if ! command -v node > /dev/null 2>&1; then
-  echo "  Falta instalar o Node.js (é o motor que roda o programa)."
+  for PASTA in ./node-v* ./node ../node-v*; do
+    if [ -x "$PASTA/bin/node" ]; then
+      PATH="$(cd "$PASTA/bin" && pwd):$PATH"
+      export PATH
+      break
+    fi
+  done
+fi
+
+if ! command -v node > /dev/null 2>&1; then
+  echo "  Não encontrei o Node.js (o motor que roda o programa)."
   echo ""
-  echo "  1. Baixe em: https://nodejs.org  (botão da esquerda, versão LTS)"
-  echo "  2. Instale clicando em avançar até o fim."
-  echo "  3. Volte aqui e clique neste arquivo de novo."
+  echo "  Se você NÃO pode instalar programas neste computador:"
+  echo "    1. Baixe em https://nodejs.org/en/download o arquivo .tar.gz para macOS."
+  echo "    2. Descompacte e coloque a pasta (node-v...) aqui, ao lado deste atalho."
+  echo "    3. Clique neste arquivo de novo."
+  echo ""
+  echo "  Se você PODE instalar: baixe o instalador em https://nodejs.org"
+  echo "  (botão LTS) e clique em avançar até o fim."
   echo ""
   read -r -p "  Aperte Enter para fechar. "
   exit 1
@@ -49,7 +63,9 @@ if [ ! -d node_modules ]; then
   echo ""
   if ! npm install --no-audit --no-fund; then
     echo ""
-    echo "  Algo deu errado ao preparar. Verifique sua conexão com a internet."
+    echo "  Não consegui baixar os componentes necessários."
+    echo "  Verifique a internet, ou peça a versão já preparada,"
+    echo "  que vem com a pasta node_modules pronta."
     read -r -p "  Aperte Enter para fechar. "
     exit 1
   fi
@@ -65,4 +81,5 @@ echo ""
 echo "  Para desligar depois, feche esta janela preta."
 echo ""
 
-npm run dev
+# Chama o node direto, sem depender do npm.
+node src/server.js
