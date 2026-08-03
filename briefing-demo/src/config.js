@@ -22,7 +22,8 @@ export const config = {
   // Roteiro ativo. Novos roteiros ficam em src/lib/briefingScripts.js.
   scriptId: process.env.BRIEFING_SCRIPT || 'corporativo-basico',
   // Teto de mensagens da IA na conversa inteira (perguntas + follow-ups + encerramento).
-  maxAiTurns: Number(process.env.MAX_AI_TURNS || 10),
+  // 8 temas no roteiro padrão + folga para follow-ups e a mensagem de encerramento.
+  maxAiTurns: Number(process.env.MAX_AI_TURNS || 12),
   // Freio contra uso inesperado da chave de API. 0 desliga o limite.
   maxBriefingsPorDia: Number(process.env.MAX_BRIEFINGS_POR_DIA ?? 40),
   // Tempo máximo esperando a API do Claude, por tentativa, antes de desistir

@@ -60,15 +60,19 @@ geração do PDF, e como rede de segurança caso a apresentação aconteça sem 
 
 1. **Tela inicial** — nome da empresa e nome de quem responde.
 2. **Conversa** — a IA faz uma pergunta por vez, com indicador de progresso
-   ("Pergunta 3 de 6"). Ela pode fazer um follow-up curto se a resposta ficar vaga, e a
-   conversa inteira é limitada a 10 mensagens da IA.
+   ("Pergunta 3 de 8"). Ela pode fazer um follow-up curto se a resposta ficar vaga, e a
+   conversa inteira é limitada a 12 mensagens da IA.
 3. **Prévia do resumo** — perfil da empresa, necessidades identificadas e recomendações
    iniciais, na tela, antes de gerar o documento.
 4. **PDF** — o botão "Baixar PDF" faz o download na hora e, no mesmo instante, salva uma
    cópia em `output/`.
 
-Temas cobertos pelo roteiro padrão: atuação/segmento, cultura e identidade, problema com o
-espaço atual, sensação desejada, referências admiradas, prioridade inegociável.
+Temas cobertos pelo roteiro padrão: atuação/segmento, cultura e identidade (perguntada de
+forma indireta — cenas do dia a dia, nunca "qual é a sua cultura"), rotina e regime de
+trabalho (indireta), problema com o espaço atual, encontros e reuniões (indireta), sensação
+desejada, referências admiradas, prioridade/prazo/orçamento. As perguntas indiretas existem
+para que a IA infira o abstrato (cultura, necessidade real de salas) a partir de respostas
+concretas que a pessoa realmente sabe dar — ver `src/lib/briefingScripts.js`.
 
 ---
 
