@@ -8,7 +8,21 @@ Roda inteiramente em `localhost`: sem banco de dados, sem e-mail, sem deploy.
 
 ---
 
-## Como rodar
+## Como rodar — jeito fácil (sem terminal)
+
+1. Instale o Node.js uma única vez: <https://nodejs.org> (versão LTS, é só avançar até o fim).
+2. Dê dois cliques no atalho, dentro da pasta `briefing-demo`:
+   - **Mac:** `iniciar-mac.command`
+   - **Windows:** `iniciar-windows.bat`
+
+O atalho pede a chave da Anthropic na primeira vez, guarda em `.env.local`, instala o que
+falta e abre o navegador sozinho. Nas próximas vezes é só clicar de novo — ele não pergunta
+mais nada. Para desligar, feche a janela preta.
+
+No Mac, se aparecer um aviso de "desenvolvedor não identificado", clique no arquivo com o
+botão direito e escolha **Abrir**. Isso só acontece na primeira vez.
+
+## Como rodar — pelo terminal
 
 Pré-requisito: Node.js 18 ou superior.
 
@@ -62,6 +76,8 @@ espaço atual, sensação desejada, referências admiradas, prioridade inegociá
 
 ```
 briefing-demo/
+├── iniciar-mac.command         # atalho de clique duplo (Mac)
+├── iniciar-windows.bat         # atalho de clique duplo (Windows)
 ├── src/
 │   ├── server.js               # Express: estáticos + /api + tratamento de erro
 │   ├── config.js               # variáveis de ambiente e padrões

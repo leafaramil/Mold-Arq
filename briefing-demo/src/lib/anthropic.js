@@ -24,6 +24,37 @@ const client = hasApiKey ? new Anthropic({ apiKey: config.apiKey }) : null;
 
 export const usingLiveApi = hasApiKey;
 
+/** Erro cuja mensagem pode ser mostrada ao usuário final. */
+function erroPublico(mensagem) {
+  const erro = new Error(mensagem);
+  erro.publico = true;
+  return erro;
+}
+
+/**
+ * Traduz falhas da API em mensagens que alguém não técnico entenda.
+ * O erro original continua no log do servidor.
+ */
+function traduzirErro(err) {
+  console.error('Falha na chamada à API da Anthropic:', err?.status, err?.message);
+
+  if (err?.status === 401 || err?.status === 403) {
+    return erroPublico(
+      'A chave da API não foi aceita. Confira se ela está correta e ainda ativa no arquivo .env.local.',
+    );
+  }
+  if (err?.status === 429) {
+    return erroPublico('Limite de uso da API atingido. Espere alguns instantes e tente de novo.');
+  }
+  if (err?.status >= 500 || err?.status === 529) {
+    return erroPublico('O serviço da Anthropic está instável agora. Tente novamente em alguns segundos.');
+  }
+  if (err?.name === 'APIConnectionError' || err?.code === 'ENOTFOUND') {
+    return erroPublico('Não foi possível falar com a API. Verifique sua conexão com a internet.');
+  }
+  return err;
+}
+
 function textOf(response) {
   return response.content
     .filter((block) => block.type === 'text')
@@ -80,21 +111,26 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     });
   }
 
-  const response = await client.messages.create({
-    model: config.model,
-    max_tokens: 4000,
-    system: buildConversationSystemPrompt({
-      script: session.script,
-      empresa: session.empresa,
-      respondente: session.respondente,
-      maxAiTurns: config.maxAiTurns,
-    }),
-    messages,
-    output_config: {
-      effort: 'low', // conversa de chat: prioriza latência
-      format: { type: 'json_schema', schema: conversationSchema },
-    },
-  });
+  let response;
+  try {
+    response = await client.messages.create({
+      model: config.model,
+      max_tokens: 4000,
+      system: buildConversationSystemPrompt({
+        script: session.script,
+        empresa: session.empresa,
+        respondente: session.respondente,
+        maxAiTurns: config.maxAiTurns,
+      }),
+      messages,
+      output_config: {
+        effort: 'low', // conversa de chat: prioriza latência
+        format: { type: 'json_schema', schema: conversationSchema },
+      },
+    });
+  } catch (err) {
+    throw traduzirErro(err);
+  }
 
   const parsed = parseStructured(response, 'condução da entrevista');
   return {
@@ -119,25 +155,30 @@ export async function buildSummary(session) {
     .map((m) => `${m.role === 'user' ? session.respondente : 'Entrevistador'}: ${m.content}`)
     .join('\n\n');
 
-  const response = await client.messages.create({
-    model: config.model,
-    max_tokens: 8000,
-    system: buildSummarySystemPrompt({
-      script: session.script,
-      empresa: session.empresa,
-      respondente: session.respondente,
-    }),
-    messages: [
-      {
-        role: 'user',
-        content: `Transcrição da entrevista de briefing:\n\n<transcricao>\n${transcricao}\n</transcricao>\n\nGere o resumo estruturado.`,
+  let response;
+  try {
+    response = await client.messages.create({
+      model: config.model,
+      max_tokens: 8000,
+      system: buildSummarySystemPrompt({
+        script: session.script,
+        empresa: session.empresa,
+        respondente: session.respondente,
+      }),
+      messages: [
+        {
+          role: 'user',
+          content: `Transcrição da entrevista de briefing:\n\n<transcricao>\n${transcricao}\n</transcricao>\n\nGere o resumo estruturado.`,
+        },
+      ],
+      output_config: {
+        effort: 'medium', // documento final: vale um pouco mais de cuidado
+        format: { type: 'json_schema', schema: summarySchema },
       },
-    ],
-    output_config: {
-      effort: 'medium', // documento final: vale um pouco mais de cuidado
-      format: { type: 'json_schema', schema: summarySchema },
-    },
-  });
+    });
+  } catch (err) {
+    throw traduzirErro(err);
+  }
 
   const parsed = parseStructured(response, 'geração do resumo');
   return {
