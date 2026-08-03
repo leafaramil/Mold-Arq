@@ -73,6 +73,8 @@ router.get('/config', (req, res) => {
   res.json({
     titulo: config.appTitle,
     modoDemonstracao: !ia.usingLiveApi,
+    // Na nuvem não existe pasta local para guardar cópia do PDF.
+    salvaCopiaLocal: !ehServerless,
     roteiro: { id: script.id, nome: script.nome, totalPerguntas: script.topics.length },
   });
 });

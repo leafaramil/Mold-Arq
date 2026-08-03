@@ -270,6 +270,8 @@ async function carregarConfig() {
     document.title = dados.titulo;
     el('app-title').textContent = dados.titulo;
     el('selo-demo').hidden = !dados.modoDemonstracao;
+    // A dica sobre a pasta local só vale quando o programa roda na máquina.
+    el('dica-pdf').hidden = !dados.salvaCopiaLocal;
   } catch {
     // Interface funciona com os textos padrão do HTML.
   }
