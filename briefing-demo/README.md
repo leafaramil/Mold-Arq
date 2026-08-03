@@ -60,19 +60,24 @@ geração do PDF, e como rede de segurança caso a apresentação aconteça sem 
 
 1. **Tela inicial** — nome da empresa e nome de quem responde.
 2. **Conversa** — a IA faz uma pergunta por vez, com indicador de progresso
-   ("Pergunta 3 de 8"). Ela pode fazer um follow-up curto se a resposta ficar vaga, e a
-   conversa inteira é limitada a 12 mensagens da IA.
+   ("Pergunta 3 de 14"). Ela pode fazer um follow-up curto se a resposta ficar vaga, e a
+   conversa inteira é limitada a 20 mensagens da IA.
 3. **Prévia do resumo** — perfil da empresa, necessidades identificadas e recomendações
    iniciais, na tela, antes de gerar o documento.
 4. **PDF** — o botão "Baixar PDF" faz o download na hora e, no mesmo instante, salva uma
    cópia em `output/`.
 
-Temas cobertos pelo roteiro padrão: atuação/segmento, cultura e identidade (perguntada de
-forma indireta — cenas do dia a dia, nunca "qual é a sua cultura"), rotina e regime de
-trabalho (indireta), problema com o espaço atual, encontros e reuniões (indireta), sensação
-desejada, referências admiradas, prioridade/prazo/orçamento. As perguntas indiretas existem
-para que a IA infira o abstrato (cultura, necessidade real de salas) a partir de respostas
-concretas que a pessoa realmente sabe dar — ver `src/lib/briefingScripts.js`.
+Temas cobertos pelo roteiro padrão: atuação/segmento, cultura e identidade (indireta — cenas
+do dia a dia, nunca "qual é a sua cultura"), porte e estrutura da equipe, espaços fechados e
+proximidade entre times, rotina e regime de trabalho (indireta), mobiliário e reaproveitamento,
+problema com o espaço atual, encontros e reuniões (indireta), áreas de apoio e o dia a dia,
+tecnologia e infraestrutura, sustentabilidade, sensação desejada, referências admiradas,
+prioridade/prazo/orçamento. Esses temas incorporam o essencial de um briefing técnico de
+referência do setor (porte de equipe, mobiliário, salas de reunião, áreas de apoio, tecnologia,
+sustentabilidade) — sempre perguntado em linguagem natural, nunca como formulário técnico. As
+perguntas marcadas como indiretas existem para que a IA infira o abstrato (cultura, necessidade
+real de salas) a partir de respostas concretas que a pessoa realmente sabe dar — ver
+`src/lib/briefingScripts.js`.
 
 ---
 
@@ -159,7 +164,7 @@ Todas as variáveis abaixo têm padrão e são opcionais (ver `.env.example`):
 | `PORT` | `3000` | porta do servidor local |
 | `APP_TITLE` | `Briefing Arquitetônico` | título na tela e no PDF |
 | `BRIEFING_SCRIPT` | `corporativo-basico` | roteiro de perguntas ativo |
-| `MAX_AI_TURNS` | `10` | teto de mensagens da IA na conversa |
+| `MAX_AI_TURNS` | `20` | teto de mensagens da IA na conversa |
 | `OUTPUT_DIR` | `output` | pasta onde os PDFs são salvos (ignorado na nuvem) |
 | `MAX_BRIEFINGS_POR_DIA` | `40` | freio contra uso inesperado da chave; `0` desliga |
 

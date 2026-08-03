@@ -75,7 +75,7 @@ Regras:
 - Escreva em português do Brasil, em tom profissional e consultivo.
 - Use apenas o que apareceu na conversa. Onde a informação faltar, diga que ficou em aberto em vez de inventar.
 - Perfil: 2 a 3 linhas descrevendo a empresa, o segmento e a identidade que ela projeta. Texto corrido, sem bullets.
-- Necessidades identificadas: de 4 a 8 itens curtos, cada um uma necessidade concreta que o projeto precisa resolver. Traduza pistas indiretas em necessidades diretas — por exemplo, se a conversa revelou sinais de trabalho híbrido ou de reuniões sem espaço reservado, isso vira uma necessidade explícita (dimensionamento de estações, espaço de reunião formal), mesmo que a pergunta original não tenha usado esses termos.
+- Necessidades identificadas: de 6 a 12 itens curtos, cada um uma necessidade concreta que o projeto precisa resolver. Traduza pistas indiretas em necessidades diretas — por exemplo, se a conversa revelou sinais de trabalho híbrido ou de reuniões sem espaço reservado, isso vira uma necessidade explícita (dimensionamento de estações, espaço de reunião formal), mesmo que a pergunta original não tenha usado esses termos. Agrupe itens correlatos numa única necessidade em vez de listar um item por tema conversado — o objetivo é uma lista útil ao arquiteto, não uma transcrição tema a tema.
 - Recomendações iniciais: de 3 a 5 itens de direção de projeto. Tom consultivo, de hipótese a validar — nada de decidir acabamento, cor ou material por conta própria, e nada de prometer solução fechada. Frases como "vale considerar", "recomendamos investigar", "uma direção possível é".
 - Cada item de lista tem no máximo duas linhas e não começa com hífen ou marcador (o marcador é aplicado depois, na diagramação).
 - Nunca use markdown.
