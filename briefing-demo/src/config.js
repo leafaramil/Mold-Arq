@@ -25,6 +25,12 @@ export const config = {
   maxAiTurns: Number(process.env.MAX_AI_TURNS || 10),
   // Freio contra uso inesperado da chave de API. 0 desliga o limite.
   maxBriefingsPorDia: Number(process.env.MAX_BRIEFINGS_POR_DIA ?? 40),
+  // Tempo máximo esperando a API do Claude, por tentativa, antes de desistir
+  // e avisar o usuário. O padrão do SDK é 10 minutos, tempo demais para uma
+  // tela de chat — sem isso, uma instabilidade de rede trava a conversa em
+  // silêncio. O SDK tenta de novo 1 vez em caso de timeout, então o tempo
+  // real no pior caso é até 2x este valor (ver maxRetries em lib/anthropic.js).
+  anthropicTimeoutMs: Number(process.env.ANTHROPIC_TIMEOUT_MS || 20_000),
 };
 
 /** Na nuvem o disco é somente leitura (fora /tmp) e não há porta para escutar. */

@@ -19,11 +19,35 @@ const corpoBase = () => ({
   conversa: estado.conversa,
 });
 
+// Sem isso, uma instabilidade de rede deixa a tela esperando para sempre —
+// o navegador não tem limite de tempo padrão para o fetch. 65s dá margem
+// para o servidor (limite de 60s) responder com seu próprio erro antes de
+// desistirmos por aqui.
+const TEMPO_LIMITE_MS = 65_000;
+
+async function comLimiteDeTempo(promessaFetch) {
+  const controlador = new AbortController();
+  const cronometro = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
+  try {
+    return await promessaFetch(controlador.signal);
+  } catch (erro) {
+    if (erro.name === 'AbortError') {
+      throw new Error('A resposta demorou demais e foi cancelada. Tente enviar de novo.');
+    }
+    throw erro;
+  } finally {
+    clearTimeout(cronometro);
+  }
+}
+
 async function api(caminho, opcoes = {}) {
-  const resposta = await fetch(`/api${caminho}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opcoes,
-  });
+  const resposta = await comLimiteDeTempo((signal) =>
+    fetch(`/api${caminho}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opcoes,
+      signal,
+    }),
+  );
   const dados = await resposta.json().catch(() => ({}));
   if (!resposta.ok) {
     throw new Error(dados.erro || 'Não foi possível concluir a operação.');
@@ -147,10 +171,7 @@ async function enviarResposta(evento) {
       body: JSON.stringify({ ...corpoBase(), texto }),
     });
 
-    estado.conversa.push(
-      { role: 'user', content: texto },
-      { role: 'assistant', content: dados.mensagem },
-    );
+    estado.conversa.push({ role: 'user', content: texto }, { role: 'assistant', content: dados.mensagem });
 
     mostrarDigitando(false);
     adicionarBolha(dados.mensagem, 'ia');
@@ -220,15 +241,18 @@ async function baixarPdf() {
   el('btn-pdf').textContent = 'Gerando…';
 
   try {
-    const resposta = await fetch('/api/briefing/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        empresa: estado.empresa,
-        respondente: estado.respondente,
-        resumo: estado.resumo,
+    const resposta = await comLimiteDeTempo((signal) =>
+      fetch('/api/briefing/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal,
+        body: JSON.stringify({
+          empresa: estado.empresa,
+          respondente: estado.respondente,
+          resumo: estado.resumo,
+        }),
       }),
-    });
+    );
     if (!resposta.ok) {
       const dados = await resposta.json().catch(() => ({}));
       throw new Error(dados.erro || 'Não foi possível gerar o PDF.');

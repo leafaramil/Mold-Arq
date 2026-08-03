@@ -20,7 +20,16 @@ import {
 } from './prompts.js';
 import * as offline from './offlineFallback.js';
 
-const client = hasApiKey ? new Anthropic({ apiKey: config.apiKey }) : null;
+const client = hasApiKey
+  ? new Anthropic({
+      apiKey: config.apiKey,
+      timeout: config.anthropicTimeoutMs,
+      // Padrão do SDK é 2 tentativas extras (3 no total). Para chat
+      // interativo isso multiplica demais a espera numa falha real; 1
+      // tentativa extra já cobre uma instabilidade passageira de rede.
+      maxRetries: 1,
+    })
+  : null;
 
 export const usingLiveApi = hasApiKey;
 
@@ -48,6 +57,9 @@ function traduzirErro(err) {
   }
   if (err?.status >= 500 || err?.status === 529) {
     return erroPublico('O serviço da Anthropic está instável agora. Tente novamente em alguns segundos.');
+  }
+  if (err?.name === 'APIConnectionTimeoutError' || /timed?\s*out/i.test(err?.message || '')) {
+    return erroPublico('A resposta da IA demorou demais e foi cancelada. Tente enviar de novo.');
   }
   if (err?.name === 'APIConnectionError' || err?.code === 'ENOTFOUND') {
     return erroPublico('Não foi possível falar com a API. Verifique sua conexão com a internet.');
