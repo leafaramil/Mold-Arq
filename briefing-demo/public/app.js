@@ -2,13 +2,22 @@
 
 const el = (id) => document.getElementById(id);
 
+// A conversa vive aqui no navegador e é reenviada a cada passo: o servidor não
+// guarda estado, o que permite rodar o mesmo código local e publicado na web.
 const estado = {
-  sessionId: null,
   empresa: '',
   respondente: '',
+  conversa: [],
+  resumo: null,
   finalizado: false,
   enviando: false,
 };
+
+const corpoBase = () => ({
+  empresa: estado.empresa,
+  respondente: estado.respondente,
+  conversa: estado.conversa,
+});
 
 async function api(caminho, opcoes = {}) {
   const resposta = await fetch(`/api${caminho}`, {
@@ -93,17 +102,18 @@ async function iniciarBriefing(evento) {
   el('btn-iniciar').textContent = 'Preparando…';
 
   try {
-    const dados = await api('/briefing', {
+    const dados = await api('/briefing/inicio', {
       method: 'POST',
       body: JSON.stringify({ empresa, respondente }),
     });
 
-    estado.sessionId = dados.sessionId;
-    estado.empresa = dados.empresa;
-    estado.respondente = dados.respondente;
+    estado.empresa = empresa;
+    estado.respondente = respondente;
+    estado.conversa = [{ role: 'assistant', content: dados.mensagem }];
+    estado.resumo = null;
     estado.finalizado = dados.finalizado;
 
-    el('progresso-empresa').textContent = dados.empresa;
+    el('progresso-empresa').textContent = empresa;
     el('conversa').replaceChildren();
     mostrarTela('tela-chat');
     adicionarBolha(dados.mensagem, 'ia');
@@ -132,10 +142,15 @@ async function enviarResposta(evento) {
   mostrarDigitando(true);
 
   try {
-    const dados = await api(`/briefing/${estado.sessionId}/messages`, {
+    const dados = await api('/briefing/mensagem', {
       method: 'POST',
-      body: JSON.stringify({ texto }),
+      body: JSON.stringify({ ...corpoBase(), texto }),
     });
+
+    estado.conversa.push(
+      { role: 'user', content: texto },
+      { role: 'assistant', content: dados.mensagem },
+    );
 
     mostrarDigitando(false);
     adicionarBolha(dados.mensagem, 'ia');
@@ -169,7 +184,11 @@ async function irParaResumo() {
   mostrarErro('erro-resumo', '');
 
   try {
-    const dados = await api(`/briefing/${estado.sessionId}/summary`, { method: 'POST' });
+    const dados = await api('/briefing/resumo', {
+      method: 'POST',
+      body: JSON.stringify(corpoBase()),
+    });
+    estado.resumo = dados.resumo;
     const { perfil, necessidades, recomendacoes } = dados.resumo;
 
     el('resumo-perfil').textContent = perfil;
@@ -201,7 +220,15 @@ async function baixarPdf() {
   el('btn-pdf').textContent = 'Gerando…';
 
   try {
-    const resposta = await fetch(`/api/briefing/${estado.sessionId}/pdf`);
+    const resposta = await fetch('/api/briefing/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empresa: estado.empresa,
+        respondente: estado.respondente,
+        resumo: estado.resumo,
+      }),
+    });
     if (!resposta.ok) {
       const dados = await resposta.json().catch(() => ({}));
       throw new Error(dados.erro || 'Não foi possível gerar o PDF.');
@@ -226,7 +253,7 @@ async function baixarPdf() {
 }
 
 function reiniciar() {
-  Object.assign(estado, { sessionId: null, empresa: '', respondente: '', finalizado: false });
+  Object.assign(estado, { empresa: '', respondente: '', conversa: [], resumo: null, finalizado: false });
   el('form-inicio').reset();
   el('conversa').replaceChildren();
   travarComposer(false);

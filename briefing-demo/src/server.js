@@ -1,27 +1,7 @@
-import express from 'express';
+/** Servidor local. Na nuvem quem sobe a aplicação é api/index.js. */
+
+import { app } from './app.js';
 import { config, hasApiKey } from './config.js';
-import { router } from './routes/briefing.js';
-
-const app = express();
-
-app.use(express.json({ limit: '128kb' }));
-app.use(express.static(config.publicDir));
-app.use('/api', router);
-
-// Middleware de erro: nunca vaza stack para a tela do cliente.
-app.use((err, req, res, next) => {
-  console.error('Erro na requisição:', err);
-  if (res.headersSent) return next(err);
-
-  // Erros marcados como públicos já têm mensagem escrita para o usuário final
-  // (ver traduzirErro em lib/anthropic.js). Os demais viram texto genérico.
-  res.status(500).json({
-    erro: err?.publico
-      ? err.message
-      : 'Não foi possível concluir a operação. Tente novamente em alguns segundos.',
-    detalhe: err?.publico ? undefined : err?.message,
-  });
-});
 
 const servidor = app.listen(config.port, () => {
   console.log(`\n${config.appTitle} — demo local`);

@@ -23,7 +23,11 @@ export const config = {
   scriptId: process.env.BRIEFING_SCRIPT || 'corporativo-basico',
   // Teto de mensagens da IA na conversa inteira (perguntas + follow-ups + encerramento).
   maxAiTurns: Number(process.env.MAX_AI_TURNS || 10),
-  sessionTtlMs: Number(process.env.SESSION_TTL_MS || 6 * 60 * 60 * 1000),
+  // Freio contra uso inesperado da chave de API. 0 desliga o limite.
+  maxBriefingsPorDia: Number(process.env.MAX_BRIEFINGS_POR_DIA ?? 40),
 };
+
+/** Na nuvem o disco é somente leitura (fora /tmp) e não há porta para escutar. */
+export const ehServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 export const hasApiKey = Boolean(config.apiKey);

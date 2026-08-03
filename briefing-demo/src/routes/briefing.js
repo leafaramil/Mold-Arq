@@ -1,37 +1,70 @@
+/**
+ * Rotas do briefing — sem estado no servidor.
+ *
+ * O navegador guarda a conversa e reenvia a cada passo. Isso permite rodar o
+ * mesmo código local e em ambiente serverless (onde cada requisição pode cair
+ * numa instância diferente, e nada guardado em memória sobrevive).
+ */
+
 import { Router } from 'express';
-import { config } from '../config.js';
+import { config, ehServerless } from '../config.js';
 import { getScript } from '../lib/briefingScripts.js';
 import * as ia from '../lib/anthropic.js';
 import { renderSummaryPdf, savePdf } from '../lib/pdf.js';
-import * as store from '../store/sessionStore.js';
+import { registrarUso } from '../lib/limiteDeUso.js';
 
 export const router = Router();
 
 const MAX_TEXTO = 2000;
 const MAX_NOME = 120;
+const MAX_MENSAGENS = 40;
+const MAX_ITENS_RESUMO = 12;
 
 function limparTexto(valor, max) {
-  return String(valor ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+  return String(valor ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
+function erroDeEntrada(mensagem) {
+  const erro = new Error(mensagem);
+  erro.status = 400;
+  erro.publico = true;
+  return erro;
 }
 
 /** Repassa erros assíncronos para o middleware de erro do Express. */
 const rota = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
-function progresso(session) {
-  const total = session.script.topics.length;
-  return {
-    atual: Math.min(Math.max(session.topicoAtual, 1), total),
-    total,
-  };
+/**
+ * Reconstrói o estado da entrevista a partir do que o navegador enviou.
+ * Tudo é validado: o corpo da requisição é dado de fora, não fonte de verdade.
+ */
+function lerSessao(body) {
+  const empresa = limparTexto(body?.empresa, MAX_NOME);
+  const respondente = limparTexto(body?.respondente, MAX_NOME);
+
+  if (!empresa || !respondente) {
+    throw erroDeEntrada('Informe o nome da empresa e o nome de quem está respondendo.');
+  }
+
+  const bruta = Array.isArray(body?.conversa) ? body.conversa : [];
+  if (bruta.length > MAX_MENSAGENS) {
+    throw erroDeEntrada('Esta conversa ficou longa demais. Recarregue a página para começar de novo.');
+  }
+
+  const messages = bruta
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+    .map((m) => ({ role: m.role, content: limparTexto(m.content, MAX_TEXTO) }))
+    .filter((m) => m.content);
+
+  return { empresa, respondente, messages, script: getScript(config.scriptId) };
 }
 
-function exigirSessao(req, res) {
-  const session = store.get(req.params.id);
-  if (!session) {
-    res.status(404).json({ erro: 'Sessão não encontrada ou expirada. Recarregue a página para começar de novo.' });
-    return null;
-  }
-  return session;
+function progresso(session, topico) {
+  const total = session.script.topics.length;
+  return { atual: Math.min(Math.max(Number(topico) || 1, 1), total), total };
 }
 
 /** Contexto da aplicação para a interface. */
@@ -44,49 +77,32 @@ router.get('/config', (req, res) => {
   });
 });
 
-/** Inicia um briefing e devolve a primeira mensagem da IA. */
+/** Primeira mensagem da entrevista. */
 router.post(
-  '/briefing',
+  '/briefing/inicio',
   rota(async (req, res) => {
-    const empresa = limparTexto(req.body?.empresa, MAX_NOME);
-    const respondente = limparTexto(req.body?.respondente, MAX_NOME);
+    const session = lerSessao({ ...req.body, conversa: [] });
+    registrarUso();
 
-    if (!empresa || !respondente) {
-      return res.status(400).json({ erro: 'Informe o nome da empresa e o nome de quem está respondendo.' });
-    }
-
-    const session = store.create({ empresa, respondente, script: getScript(config.scriptId) });
     const resposta = await ia.nextQuestion(session);
-
-    session.messages.push({ role: 'assistant', content: resposta.mensagem });
-    store.update(session, { topicoAtual: resposta.topico, finished: resposta.encerrar });
-
-    res.status(201).json({
-      sessionId: session.id,
-      empresa: session.empresa,
-      respondente: session.respondente,
+    res.json({
       mensagem: resposta.mensagem,
-      progresso: progresso(session),
-      finalizado: session.finished,
+      progresso: progresso(session, resposta.topico),
+      finalizado: resposta.encerrar,
       modoDemonstracao: !ia.usingLiveApi,
     });
   }),
 );
 
-/** Envia a resposta do cliente e recebe a próxima fala da IA. */
+/** Resposta do cliente e próxima fala da IA. */
 router.post(
-  '/briefing/:id/messages',
+  '/briefing/mensagem',
   rota(async (req, res) => {
-    const session = exigirSessao(req, res);
-    if (!session) return;
-
-    if (session.finished) {
-      return res.status(409).json({ erro: 'Esta entrevista já foi encerrada.' });
-    }
-
+    const session = lerSessao(req.body);
     const texto = limparTexto(req.body?.texto, MAX_TEXTO);
+
     if (!texto) {
-      return res.status(400).json({ erro: 'Escreva uma resposta antes de enviar.' });
+      throw erroDeEntrada('Escreva uma resposta antes de enviar.');
     }
 
     session.messages.push({ role: 'user', content: texto });
@@ -95,64 +111,70 @@ router.post(
     const forcarEncerramento = falasDaIa + 1 >= config.maxAiTurns;
 
     const resposta = await ia.nextQuestion(session, { forcarEncerramento });
-    session.messages.push({ role: 'assistant', content: resposta.mensagem });
-    store.update(session, { topicoAtual: resposta.topico, finished: resposta.encerrar });
-
     res.json({
       mensagem: resposta.mensagem,
-      progresso: progresso(session),
-      finalizado: session.finished,
+      progresso: progresso(session, resposta.topico),
+      finalizado: resposta.encerrar,
     });
   }),
 );
 
-/** Gera (e memoriza) o resumo estruturado da entrevista. */
+/** Resumo estruturado da entrevista. */
 router.post(
-  '/briefing/:id/summary',
+  '/briefing/resumo',
   rota(async (req, res) => {
-    const session = exigirSessao(req, res);
-    if (!session) return;
+    const session = lerSessao(req.body);
 
-    if (session.messages.filter((m) => m.role === 'user').length === 0) {
-      return res.status(400).json({ erro: 'A entrevista ainda não tem respostas para resumir.' });
+    if (!session.messages.some((m) => m.role === 'user')) {
+      throw erroDeEntrada('A entrevista ainda não tem respostas para resumir.');
     }
 
-    if (!session.summary) {
-      store.update(session, { summary: await ia.buildSummary(session) });
-    }
-
-    res.json({
-      empresa: session.empresa,
-      respondente: session.respondente,
-      resumo: session.summary,
-      modoDemonstracao: !ia.usingLiveApi,
-    });
+    const resumo = await ia.buildSummary(session);
+    res.json({ resumo, modoDemonstracao: !ia.usingLiveApi });
   }),
 );
 
-/** Renderiza o PDF, salva em /output e devolve para download. */
-router.get(
-  '/briefing/:id/pdf',
+/** Gera o PDF a partir do resumo já exibido na tela. */
+router.post(
+  '/briefing/pdf',
   rota(async (req, res) => {
-    const session = exigirSessao(req, res);
-    if (!session) return;
+    const empresa = limparTexto(req.body?.empresa, MAX_NOME);
+    const respondente = limparTexto(req.body?.respondente, MAX_NOME);
+    const enviado = req.body?.resumo;
 
-    if (!session.summary) {
-      store.update(session, { summary: await ia.buildSummary(session) });
+    if (!empresa || !respondente || !enviado?.perfil) {
+      throw erroDeEntrada('Faltam dados do resumo para gerar o PDF.');
     }
+
+    const listar = (itens) =>
+      (Array.isArray(itens) ? itens : [])
+        .slice(0, MAX_ITENS_RESUMO)
+        .map((i) => limparTexto(i, MAX_TEXTO))
+        .filter(Boolean);
+
+    const resumo = {
+      perfil: limparTexto(enviado.perfil, MAX_TEXTO * 2),
+      necessidades: listar(enviado.necessidades),
+      recomendacoes: listar(enviado.recomendacoes),
+    };
 
     const data = new Date();
     const bytes = await renderSummaryPdf({
-      empresa: session.empresa,
-      respondente: session.respondente,
-      summary: session.summary,
+      empresa,
+      respondente,
+      summary: resumo,
       data,
       modoDemonstracao: !ia.usingLiveApi,
     });
 
-    // Salva localmente (pasta /output) e entrega no navegador ao mesmo tempo.
-    const { filename, path: caminho } = await savePdf(bytes, { empresa: session.empresa, data });
-    console.log(`PDF gerado: ${caminho}`);
+    // Na nuvem o disco é somente leitura, então a cópia local só faz sentido
+    // quando o programa está rodando na máquina de alguém.
+    let filename = `briefing-${data.toISOString().slice(0, 10)}.pdf`;
+    if (!ehServerless) {
+      const salvo = await savePdf(bytes, { empresa, data });
+      filename = salvo.filename;
+      console.log(`PDF gerado: ${salvo.path}`);
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

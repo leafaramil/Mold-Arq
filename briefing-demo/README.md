@@ -78,16 +78,19 @@ espaço atual, sensação desejada, referências admiradas, prioridade inegociá
 briefing-demo/
 ├── iniciar-mac.command         # atalho de clique duplo (Mac)
 ├── iniciar-windows.bat         # atalho de clique duplo (Windows)
+├── api/index.js                # ponto de entrada quando publicado na nuvem
+├── vercel.json                 # manda todas as rotas para a aplicação
 ├── src/
-│   ├── server.js               # Express: estáticos + /api + tratamento de erro
+│   ├── app.js                  # aplicação Express (sem listen), usada nos dois modos
+│   ├── server.js               # servidor local: só chama listen
 │   ├── config.js               # variáveis de ambiente e padrões
 │   ├── routes/briefing.js      # rotas HTTP do briefing
-│   ├── store/sessionStore.js   # sessões em memória (trocar por banco = trocar este arquivo)
 │   └── lib/
 │       ├── anthropic.js        # chamadas ao Claude (structured outputs)
 │       ├── prompts.js          # system prompts e schemas de saída
 │       ├── briefingScripts.js  # roteiros de perguntas
 │       ├── offlineFallback.js  # roteiro fixo do modo demonstração
+│       ├── limiteDeUso.js      # freio de briefings por dia
 │       └── pdf.js              # diagramação do PDF (pdf-lib)
 ├── public/                     # interface (HTML/CSS/JS, sem build)
 └── output/                     # PDFs gerados
@@ -95,13 +98,18 @@ briefing-demo/
 
 ### API
 
+O servidor não guarda estado: o navegador mantém a conversa e a reenvia a cada
+passo. Isso é o que permite publicar o mesmo código na nuvem, onde cada requisição
+pode cair numa instância diferente. Todo corpo de requisição é validado — papéis
+fora de `user`/`assistant` são descartados, e tamanhos têm teto.
+
 | Rota | Descrição |
 | --- | --- |
 | `GET /api/config` | título do app, roteiro ativo, se está em modo demonstração |
-| `POST /api/briefing` | inicia a sessão e devolve a primeira pergunta |
-| `POST /api/briefing/:id/messages` | envia a resposta do cliente, recebe a próxima fala |
-| `POST /api/briefing/:id/summary` | gera (e memoriza) o resumo estruturado |
-| `GET /api/briefing/:id/pdf` | renderiza o PDF, salva em `output/` e devolve para download |
+| `POST /api/briefing/inicio` | primeira pergunta da entrevista |
+| `POST /api/briefing/mensagem` | envia a resposta do cliente, recebe a próxima fala |
+| `POST /api/briefing/resumo` | gera o resumo estruturado a partir da conversa |
+| `POST /api/briefing/pdf` | renderiza o PDF (e salva em `output/` quando roda local) |
 
 ---
 
@@ -113,9 +121,9 @@ está implementada — a estrutura só evita reescrita quando forem.
 - **Envio de e-mail** — hoje a única saída é o PDF. O ponto de entrada é a rota
   `GET /api/briefing/:id/pdf` em `src/routes/briefing.js`: ela já produz os bytes do PDF e
   o resumo estruturado; anexar e enviar é um passo a mais ali, sem tocar na interface.
-- **Persistência em banco** — `src/store/sessionStore.js` isola todo o estado por trás de
-  `create / get / update / remove`. Uma implementação com Postgres ou Redis que respeite
-  essas quatro funções substitui o arquivo sem mexer nas rotas.
+- **Persistência em banco** — hoje nada é gravado: a conversa vive no navegador e some ao
+  fechar a aba. Para guardar histórico, o ponto é `src/routes/briefing.js`, onde a conversa
+  chega inteira a cada passo — basta escrever ali, sem mudar a interface.
 - **Múltiplos roteiros de briefing** — `src/lib/briefingScripts.js` guarda os roteiros num
   mapa por id. Basta registrar outro objeto com sua lista de temas e apontar
   `BRIEFING_SCRIPT` no `.env.local`. Os prompts e o indicador de progresso se ajustam
@@ -123,6 +131,19 @@ está implementada — a estrutura só evita reescrita quando forem.
 - **Customização visual (logo/cores)** — o PDF é diagramado só em `src/lib/pdf.js`
   (paleta e fontes concentradas nas constantes `COLOR` e `PAGE`); a interface usa variáveis
   CSS no `:root` de `public/styles.css`. O título é `APP_TITLE`, um placeholder trocável.
+
+## Publicar na internet (Vercel)
+
+O projeto já vem preparado: `api/index.js` entrega a mesma aplicação Express, e o
+`vercel.json` manda todas as rotas para ela.
+
+1. Na Vercel, crie um projeto novo apontando para este repositório.
+2. Em **Root Directory**, escolha `briefing-demo`.
+3. Em **Environment Variables**, adicione `ANTHROPIC_API_KEY`.
+4. Deploy.
+
+Na nuvem o disco é somente leitura, então a cópia automática em `output/` é pulada — o
+PDF continua sendo baixado normalmente pelo navegador.
 
 ## Configuração opcional
 
@@ -135,7 +156,8 @@ Todas as variáveis abaixo têm padrão e são opcionais (ver `.env.example`):
 | `APP_TITLE` | `Briefing Arquitetônico` | título na tela e no PDF |
 | `BRIEFING_SCRIPT` | `corporativo-basico` | roteiro de perguntas ativo |
 | `MAX_AI_TURNS` | `10` | teto de mensagens da IA na conversa |
-| `OUTPUT_DIR` | `output` | pasta onde os PDFs são salvos |
+| `OUTPUT_DIR` | `output` | pasta onde os PDFs são salvos (ignorado na nuvem) |
+| `MAX_BRIEFINGS_POR_DIA` | `40` | freio contra uso inesperado da chave; `0` desliga |
 
 ## Notas técnicas
 
@@ -147,4 +169,6 @@ Todas as variáveis abaixo têm padrão e são opcionais (ver `.env.example`):
   respondendo — texto digitado no chat nunca vira instrução.
 - O PDF é gerado com `pdf-lib` e fontes padrão (Helvetica), que cobrem a acentuação do
   português; caracteres fora dessa tabela são normalizados antes de desenhar.
-- Sessões ficam em memória e expiram em 6 horas; reiniciar o servidor limpa tudo.
+- O limite diário de briefings é contado na memória do processo. Local, isso cobre bem;
+  na nuvem cada instância conta a sua parte, então o teto real pode ser maior que o
+  configurado. É um freio contra acidente e link vazado, não um cadeado.
