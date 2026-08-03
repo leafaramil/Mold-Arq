@@ -127,7 +127,9 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
   try {
     response = await client.messages.create({
       model: config.model,
-      max_tokens: 4000,
+      // A resposta de cada turno é curta (uma pergunta), então 1500 tokens
+      // sobram — um teto menor também limita o pior caso de latência.
+      max_tokens: 1500,
       system: buildConversationSystemPrompt({
         script: session.script,
         empresa: session.empresa,
@@ -135,6 +137,11 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
         maxAiTurns: config.maxAiTurns,
       }),
       messages,
+      // Claude Opus 5 pensa por padrão quando "thinking" não é informado —
+      // isso soma segundos reais a cada turno do chat sem necessidade aqui
+      // (é uma pergunta de roteiro, não um raciocínio complexo). Desligado
+      // explicitamente; permitido até effort "high", e estamos em "low".
+      thinking: { type: 'disabled' },
       output_config: {
         effort: 'low', // conversa de chat: prioriza latência
         format: { type: 'json_schema', schema: conversationSchema },
