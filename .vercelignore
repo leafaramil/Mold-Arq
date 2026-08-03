@@ -1,0 +1,4 @@
+# A pasta briefing-demo tem projeto proprio na Vercel (com Root Directory
+# apontando para ela). Excluir daqui mantem o deploy do site institucional
+# exatamente igual ao que ja era, sem servir esses arquivos no dominio.
+briefing-demo
