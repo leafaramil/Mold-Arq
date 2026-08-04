@@ -58,7 +58,7 @@
 
           <form class="composer" id="form-mensagem">
             <button class="botao-anexo" type="button" id="btn-anexar" hidden title="Anexar arquivo">📎</button>
-            <input type="file" id="input-arquivo" hidden />
+            <input type="file" id="input-arquivo" multiple hidden />
             <textarea
               id="entrada"
               rows="2"
@@ -69,7 +69,7 @@
             <button class="botao" type="submit" id="btn-enviar">Enviar</button>
           </form>
           <p class="erro" id="erro-chat" hidden></p>
-          <p class="dica">Enter envia · Shift + Enter quebra linha · clique nas opções para selecionar</p>
+          <p class="dica">Enter envia · Shift + Enter quebra linha · clique numa opção para responder na hora</p>
         </div>
       </section>
 
@@ -90,9 +90,6 @@
           <div id="resumo-carregando" class="apoio">Organizando o resumo…</div>
 
           <article id="resumo-conteudo" hidden>
-            <h3>Perfil da empresa</h3>
-            <p id="resumo-perfil"></p>
-
             <h3>Necessidades identificadas</h3>
             <ul id="resumo-necessidades"></ul>
 

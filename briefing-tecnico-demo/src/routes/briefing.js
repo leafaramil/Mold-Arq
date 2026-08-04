@@ -158,7 +158,7 @@ router.post(
     const contato = limparTexto(req.body?.contato, MAX_NOME);
     const enviado = req.body?.resumo;
 
-    if (!empresa || !respondente || !enviado?.perfil) {
+    if (!empresa || !respondente || !enviado?.necessidades?.length) {
       throw erroDeEntrada('Faltam dados do resumo para gerar o PDF.');
     }
 
@@ -169,7 +169,6 @@ router.post(
         .filter(Boolean);
 
     const resumo = {
-      perfil: limparTexto(enviado.perfil, MAX_TEXTO * 2),
       necessidades: listar(enviado.necessidades),
       recomendacoes: listar(enviado.recomendacoes),
       pendencias: listar(enviado.pendencias),

@@ -135,6 +135,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
         empresa: session.empresa,
         respondente: session.respondente,
         cargo: session.cargo,
+        appTitle: config.appTitle,
         maxAiTurns: config.maxAiTurns,
       }),
       messages,
@@ -205,7 +206,6 @@ export async function buildSummary(session) {
 
   const parsed = parseStructured(response, 'geração do resumo');
   return {
-    perfil: String(parsed.perfil || '').trim(),
     necessidades: (parsed.necessidades || []).map((i) => String(i).trim()).filter(Boolean),
     recomendacoes: (parsed.recomendacoes || []).map((i) => String(i).trim()).filter(Boolean),
     pendencias: (parsed.pendencias || []).map((i) => String(i).trim()).filter(Boolean),

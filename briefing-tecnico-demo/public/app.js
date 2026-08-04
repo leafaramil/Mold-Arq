@@ -18,7 +18,6 @@ const estado = {
   resumo: null,
   finalizado: false,
   enviando: false,
-  opcoesSelecionadas: new Set(),
   permiteAnexoAtual: false,
 };
 
@@ -116,12 +115,16 @@ function travarComposer(travado) {
   el('btn-anexar').disabled = travado;
 }
 
-/* ---------- Opções de resposta rápida ---------- */
+/* ---------- Opções de resposta rápida ----------
+ * Clicar numa opção envia a resposta na hora, sem precisar apertar "Enviar"
+ * depois — igual a um botão de resposta rápida de chat. O campo de texto
+ * continua disponível ao lado, como caminho alternativo, mas nunca se
+ * combina com a opção clicada: cada pergunta é respondida de um jeito só.
+ */
 
 function mostrarOpcoes(opcoes) {
   const area = el('area-opcoes');
   area.replaceChildren();
-  estado.opcoesSelecionadas = new Set();
 
   if (!opcoes || opcoes.length === 0) {
     area.hidden = true;
@@ -134,15 +137,7 @@ function mostrarOpcoes(opcoes) {
     chip.type = 'button';
     chip.className = 'chip';
     chip.textContent = opcao;
-    chip.addEventListener('click', () => {
-      if (estado.opcoesSelecionadas.has(opcao)) {
-        estado.opcoesSelecionadas.delete(opcao);
-        chip.classList.remove('chip-selecionada');
-      } else {
-        estado.opcoesSelecionadas.add(opcao);
-        chip.classList.add('chip-selecionada');
-      }
-    });
+    chip.addEventListener('click', () => enviarTexto(opcao));
     area.append(chip);
   }
 }
@@ -150,17 +145,6 @@ function mostrarOpcoes(opcoes) {
 function esconderOpcoes() {
   el('area-opcoes').hidden = true;
   el('area-opcoes').replaceChildren();
-  estado.opcoesSelecionadas = new Set();
-}
-
-/** Junta as opções clicadas com o texto livre (campo "outro") numa única resposta. */
-function montarTextoDaResposta() {
-  const digitado = el('entrada').value.trim();
-  const selecionadas = [...estado.opcoesSelecionadas];
-
-  if (selecionadas.length === 0) return digitado;
-  if (!digitado) return selecionadas.join(', ');
-  return `${selecionadas.join(', ')}; outro: ${digitado}`;
 }
 
 function atualizarBotaoAnexar(permite) {
@@ -267,13 +251,15 @@ async function enviarTexto(texto) {
 
 async function enviarResposta(evento) {
   evento?.preventDefault();
-  await enviarTexto(montarTextoDaResposta());
+  await enviarTexto(el('entrada').value.trim());
 }
 
 /**
  * O arquivo nunca sai do navegador — nesta demonstração não há onde guardá-lo.
  * Só o nome entra na conversa, como confirmação visual de que o anexo
- * "chegou", e vai para o resumo final em PDF.
+ * "chegou", e vai para o resumo final em PDF. O seletor aceita vários
+ * arquivos de uma vez (segurando Ctrl/Cmd ou Shift na janela do sistema),
+ * para não precisar reabrir o seletor a cada arquivo.
  */
 function anexarArquivo() {
   if (estado.enviando || estado.finalizado) return;
@@ -281,10 +267,11 @@ function anexarArquivo() {
 }
 
 function aoEscolherArquivo(evento) {
-  const arquivo = evento.target.files?.[0];
+  const arquivos = [...(evento.target.files || [])];
   evento.target.value = '';
-  if (!arquivo) return;
-  enviarTexto(`📎 Anexei: ${arquivo.name}`);
+  if (arquivos.length === 0) return;
+  const nomes = arquivos.map((a) => a.name).join(', ');
+  enviarTexto(`📎 Anexei: ${nomes}`);
 }
 
 async function irParaResumo() {
@@ -301,9 +288,8 @@ async function irParaResumo() {
       body: JSON.stringify(corpoBase()),
     });
     estado.resumo = dados.resumo;
-    const { perfil, necessidades, recomendacoes, pendencias, anexos } = dados.resumo;
+    const { necessidades, recomendacoes, pendencias, anexos } = dados.resumo;
 
-    el('resumo-perfil').textContent = perfil;
     preencherLista('resumo-necessidades', necessidades);
     preencherLista('resumo-recomendacoes', recomendacoes);
 
@@ -384,7 +370,6 @@ function reiniciar() {
     conversa: [],
     resumo: null,
     finalizado: false,
-    opcoesSelecionadas: new Set(),
     permiteAnexoAtual: false,
   });
   el('form-inicio').reset();

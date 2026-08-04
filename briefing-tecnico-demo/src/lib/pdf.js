@@ -100,7 +100,7 @@ function slug(texto) {
  * @param {string} params.respondente
  * @param {string} [params.cargo]
  * @param {string} [params.contato]
- * @param {{perfil: string, necessidades: string[], recomendacoes: string[], pendencias?: string[], anexos?: string[]}} params.summary
+ * @param {{necessidades: string[], recomendacoes: string[], pendencias?: string[], anexos?: string[]}} params.summary
  * @param {Date} [params.data]
  * @param {boolean} [params.modoDemonstracao]
  * @returns {Promise<Uint8Array>}
@@ -194,10 +194,6 @@ export async function renderSummaryPdf({
   espaco(6);
   linhaHorizontal();
   espaco(16);
-
-  secao('Perfil da empresa');
-  escrever(summary.perfil);
-  espaco(14);
 
   secao('Necessidades identificadas');
   bullets(summary.necessidades);
