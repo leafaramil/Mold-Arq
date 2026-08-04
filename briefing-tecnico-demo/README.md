@@ -1,5 +1,7 @@
 # Levantamento Técnico — demo local
 
+> Publicado em produção via Vercel, conectado a este repositório (pasta `briefing-tecnico-demo`, branch `main`).
+
 Demo de uma ferramenta de levantamento técnico de infraestrutura conversacional, para a
 etapa de engenharia de projetos de arquitetura corporativa (elétrica, rede, segurança,
 ar-condicionado, servidores). A IA conduz uma entrevista de 19 temas — traduzindo perguntas
