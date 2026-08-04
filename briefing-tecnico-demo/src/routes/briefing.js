@@ -17,7 +17,8 @@ export const router = Router();
 
 const MAX_TEXTO = 2000;
 const MAX_NOME = 120;
-const MAX_MENSAGENS = 40;
+// Cobre user+assistant dos até 50 turnos da IA (MAX_AI_TURNS) com folga.
+const MAX_MENSAGENS = 120;
 const MAX_ITENS_RESUMO = 12;
 
 function limparTexto(valor, max) {
@@ -44,9 +45,11 @@ const rota = (handler) => (req, res, next) => handler(req, res, next).catch(next
 function lerSessao(body) {
   const empresa = limparTexto(body?.empresa, MAX_NOME);
   const respondente = limparTexto(body?.respondente, MAX_NOME);
+  const cargo = limparTexto(body?.cargo, MAX_NOME);
+  const contato = limparTexto(body?.contato, MAX_NOME);
 
-  if (!empresa || !respondente) {
-    throw erroDeEntrada('Informe o nome da empresa e o nome de quem está respondendo.');
+  if (!empresa || !respondente || !cargo || !contato) {
+    throw erroDeEntrada('Informe empresa, nome, cargo e contato de quem está respondendo.');
   }
 
   const bruta = Array.isArray(body?.conversa) ? body.conversa : [];
@@ -59,12 +62,17 @@ function lerSessao(body) {
     .map((m) => ({ role: m.role, content: limparTexto(m.content, MAX_TEXTO) }))
     .filter((m) => m.content);
 
-  return { empresa, respondente, messages, script: getScript(config.scriptId) };
+  return { empresa, respondente, cargo, contato, messages, script: getScript(config.scriptId) };
 }
 
 function progresso(session, topico) {
   const total = session.script.topics.length;
   return { atual: Math.min(Math.max(Number(topico) || 1, 1), total), total };
+}
+
+/** Alguns temas mostram um botão de anexar arquivo (ver src/lib/briefingScripts.js). */
+function permiteAnexo(session, topico) {
+  return Boolean(session.script.topics.find((t) => t.id === Number(topico))?.permiteAnexo);
 }
 
 /** Contexto da aplicação para a interface. */
@@ -89,6 +97,8 @@ router.post(
     const resposta = await ia.nextQuestion(session);
     res.json({
       mensagem: resposta.mensagem,
+      opcoes: resposta.opcoes,
+      permiteAnexo: permiteAnexo(session, resposta.topico),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
       modoDemonstracao: !ia.usingLiveApi,
@@ -115,6 +125,8 @@ router.post(
     const resposta = await ia.nextQuestion(session, { forcarEncerramento });
     res.json({
       mensagem: resposta.mensagem,
+      opcoes: resposta.opcoes,
+      permiteAnexo: permiteAnexo(session, resposta.topico),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
     });
@@ -142,6 +154,8 @@ router.post(
   rota(async (req, res) => {
     const empresa = limparTexto(req.body?.empresa, MAX_NOME);
     const respondente = limparTexto(req.body?.respondente, MAX_NOME);
+    const cargo = limparTexto(req.body?.cargo, MAX_NOME);
+    const contato = limparTexto(req.body?.contato, MAX_NOME);
     const enviado = req.body?.resumo;
 
     if (!empresa || !respondente || !enviado?.perfil) {
@@ -158,12 +172,16 @@ router.post(
       perfil: limparTexto(enviado.perfil, MAX_TEXTO * 2),
       necessidades: listar(enviado.necessidades),
       recomendacoes: listar(enviado.recomendacoes),
+      pendencias: listar(enviado.pendencias),
+      anexos: listar(enviado.anexos),
     };
 
     const data = new Date();
     const bytes = await renderSummaryPdf({
       empresa,
       respondente,
+      cargo,
+      contato,
       summary: resumo,
       data,
       modoDemonstracao: !ia.usingLiveApi,

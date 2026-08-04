@@ -107,7 +107,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
   const messages = [
     {
       role: 'user',
-      content: `Sou ${session.respondente}, da empresa ${session.empresa}. Pode começar o briefing.`,
+      content: `Sou ${session.respondente}, cargo ${session.cargo}, contato ${session.contato}, da empresa ${session.empresa}. Pode começar o levantamento técnico.`,
     },
     ...session.messages.map(({ role, content }) => ({ role, content })),
   ];
@@ -134,6 +134,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
         script: session.script,
         empresa: session.empresa,
         respondente: session.respondente,
+        cargo: session.cargo,
         maxAiTurns: config.maxAiTurns,
       }),
       messages,
@@ -155,6 +156,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
   return {
     mensagem: String(parsed.mensagem || '').trim(),
     topico: Number(parsed.topico) || 1,
+    opcoes: (parsed.opcoes || []).map((o) => String(o).trim()).filter(Boolean),
     encerrar: Boolean(parsed.encerrar) || forcarEncerramento,
   };
 }
@@ -183,6 +185,8 @@ export async function buildSummary(session) {
         script: session.script,
         empresa: session.empresa,
         respondente: session.respondente,
+        cargo: session.cargo,
+        contato: session.contato,
       }),
       messages: [
         {
@@ -204,5 +208,7 @@ export async function buildSummary(session) {
     perfil: String(parsed.perfil || '').trim(),
     necessidades: (parsed.necessidades || []).map((i) => String(i).trim()).filter(Boolean),
     recomendacoes: (parsed.recomendacoes || []).map((i) => String(i).trim()).filter(Boolean),
+    pendencias: (parsed.pendencias || []).map((i) => String(i).trim()).filter(Boolean),
+    anexos: (parsed.anexos || []).map((i) => String(i).trim()).filter(Boolean),
   };
 }

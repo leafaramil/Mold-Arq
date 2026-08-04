@@ -7,7 +7,7 @@ setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
 echo.
-echo   Briefing Arquitetonico - demo
+echo   Levantamento Tecnico - demo
 echo   ------------------------------
 echo.
 

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Levantamento Técnico</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topo">
+        <h1 id="app-title">Levantamento Técnico</h1>
+        <span class="selo" id="selo-demo" hidden>modo demonstração</span>
+      </header>
+
+      <!-- 1. Tela inicial -->
+      <section class="tela" id="tela-inicio">
+        <div class="cartao">
+          <h2>Vamos começar</h2>
+          <p class="apoio">
+            Um levantamento técnico de infraestrutura para o projeto — elétrica, rede, segurança,
+            ar-condicionado e mais. Ao final, você recebe um resumo em PDF.
+          </p>
+          <form id="form-inicio" novalidate>
+            <label for="empresa">Nome da empresa</label>
+            <input id="empresa" name="empresa" type="text" autocomplete="organization" maxlength="120" required />
+
+            <label for="respondente">Seu nome</label>
+            <input id="respondente" name="respondente" type="text" autocomplete="name" maxlength="120" required />
+
+            <label for="cargo">Seu cargo</label>
+            <input id="cargo" name="cargo" type="text" autocomplete="organization-title" maxlength="120" required />
+
+            <label for="contato">Seu contato (e-mail ou telefone)</label>
+            <input id="contato" name="contato" type="text" autocomplete="email" maxlength="120" required />
+
+            <p class="erro" id="erro-inicio" hidden></p>
+            <button class="botao" type="submit" id="btn-iniciar">Iniciar levantamento</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 2. Conversa -->
+      <section class="tela" id="tela-chat" hidden>
+        <div class="cartao cartao-chat">
+          <div class="progresso">
+            <div class="progresso-rotulo">
+              <span id="progresso-texto">Pergunta 1 de 19</span>
+              <span id="progresso-empresa" class="apoio-inline"></span>
+            </div>
+            <div class="barra"><div class="barra-preenchida" id="barra-preenchida"></div></div>
+          </div>
+
+          <div class="conversa" id="conversa" aria-live="polite"></div>
+
+          <div class="opcoes" id="area-opcoes" hidden></div>
+
+          <form class="composer" id="form-mensagem">
+            <button class="botao-anexo" type="button" id="btn-anexar" hidden title="Anexar arquivo">📎</button>
+            <input type="file" id="input-arquivo" hidden />
+            <textarea
+              id="entrada"
+              rows="2"
+              maxlength="2000"
+              placeholder="Escreva sua resposta…"
+              autocomplete="off"
+            ></textarea>
+            <button class="botao" type="submit" id="btn-enviar">Enviar</button>
+          </form>
+          <p class="erro" id="erro-chat" hidden></p>
+          <p class="dica">Enter envia · Shift + Enter quebra linha · clique nas opções para selecionar</p>
+        </div>
+      </section>
+
+      <!-- 3. Prévia do resumo -->
+      <section class="tela" id="tela-resumo" hidden>
+        <div class="cartao">
+          <div class="resumo-topo">
+            <div>
+              <h2>Resumo do levantamento</h2>
+              <p class="apoio" id="resumo-meta"></p>
+            </div>
+            <div class="acoes">
+              <button class="botao" type="button" id="btn-pdf">Baixar PDF</button>
+              <button class="botao botao-secundario" type="button" id="btn-reiniciar">Novo levantamento</button>
+            </div>
+          </div>
+
+          <div id="resumo-carregando" class="apoio">Organizando o resumo…</div>
+
+          <article id="resumo-conteudo" hidden>
+            <h3>Perfil da empresa</h3>
+            <p id="resumo-perfil"></p>
+
+            <h3>Necessidades identificadas</h3>
+            <ul id="resumo-necessidades"></ul>
+
+            <h3>Recomendações iniciais</h3>
+            <ul id="resumo-recomendacoes"></ul>
+
+            <div id="bloco-pendencias" hidden>
+              <h3>Pendências técnicas</h3>
+              <ul id="resumo-pendencias"></ul>
+            </div>
+
+            <div id="bloco-anexos" hidden>
+              <h3>Arquivos anexados</h3>
+              <ul id="resumo-anexos"></ul>
+            </div>
+          </article>
+
+          <p class="erro" id="erro-resumo" hidden></p>
+          <p class="dica" id="dica-pdf">O PDF também é salvo automaticamente na pasta <code>output/</code> do projeto.</p>
+        </div>
+      </section>
+    </div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

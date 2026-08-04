@@ -98,7 +98,9 @@ function slug(texto) {
  * @param {object} params
  * @param {string} params.empresa
  * @param {string} params.respondente
- * @param {{perfil: string, necessidades: string[], recomendacoes: string[]}} params.summary
+ * @param {string} [params.cargo]
+ * @param {string} [params.contato]
+ * @param {{perfil: string, necessidades: string[], recomendacoes: string[], pendencias?: string[], anexos?: string[]}} params.summary
  * @param {Date} [params.data]
  * @param {boolean} [params.modoDemonstracao]
  * @returns {Promise<Uint8Array>}
@@ -106,6 +108,8 @@ function slug(texto) {
 export async function renderSummaryPdf({
   empresa,
   respondente,
+  cargo,
+  contato,
   summary,
   data = new Date(),
   modoDemonstracao = false,
@@ -179,7 +183,10 @@ export async function renderSummaryPdf({
   espaco(20);
   escrever(sanitize(empresa), { font: bold, size: 15, color: COLOR.titulo, leading: 1.3 });
   espaco(2);
-  escrever(`Respondido por ${sanitize(respondente)}  ·  ${formatarData(data)}`, {
+  const linhaRespondente = [sanitize(respondente), cargo ? sanitize(cargo) : null, contato ? sanitize(contato) : null]
+    .filter(Boolean)
+    .join('  ·  ');
+  escrever(`Respondido por ${linhaRespondente}  ·  ${formatarData(data)}`, {
     size: 10,
     color: COLOR.suave,
     leading: 1.3,
@@ -198,6 +205,18 @@ export async function renderSummaryPdf({
 
   secao('Recomendações iniciais de direção de projeto');
   bullets(summary.recomendacoes);
+
+  if (summary.pendencias?.length) {
+    espaco(8);
+    secao('Pendências técnicas — a confirmar com o responsável indicado');
+    bullets(summary.pendencias);
+  }
+
+  if (summary.anexos?.length) {
+    espaco(8);
+    secao('Arquivos anexados pelo cliente durante a entrevista');
+    bullets(summary.anexos);
+  }
 
   // Nota de rodapé: ancorada na base da última página, na faixa abaixo da área
   // de conteúdo — nunca empurra uma página nova só para caber.

@@ -6,7 +6,7 @@
 cd "$(dirname "$0")" || exit 1
 
 echo ""
-echo "  Briefing Arquitetônico — demo"
+echo "  Levantamento Técnico — demo"
 echo "  ------------------------------"
 echo ""
 
