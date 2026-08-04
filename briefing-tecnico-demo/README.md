@@ -1,6 +1,6 @@
 # Levantamento Técnico — demo local
 
-> Publicado em produção via Vercel, conectado a este repositório (pasta `briefing-tecnico-demo`, branch `main`).
+> Publicado em produção via Vercel, conectado a este repositório (pasta `briefing-tecnico-demo`, branch `main`), com `ANTHROPIC_API_KEY` configurada.
 
 Demo de uma ferramenta de levantamento técnico de infraestrutura conversacional, para a
 etapa de engenharia de projetos de arquitetura corporativa (elétrica, rede, segurança,
