@@ -17,7 +17,7 @@
 const PERGUNTAS = [
   {
     topico: 1,
-    mensagem: 'Olá! Seja bem-vindo(a) ao Briefing Técnico. O objetivo é entender as necessidades técnicas da empresa para o projeto — o que não estiver disponível agora pode ser complementado depois. Vamos começar?',
+    mensagem: 'Olá! Seja bem-vindo(a) ao Briefing Técnico. A ideia aqui é entender as necessidades da empresa para orientar o projeto, com perguntas simples e diretas. Qualquer informação que não estiver disponível agora pode ser complementada depois. Vamos começar?',
     opcoes: ['Vamos lá!'],
   },
   {

@@ -176,17 +176,14 @@ export async function renderSummaryPdf({
     }
   };
 
-  // Cabeçalho
-  escrever(config.appTitle, { font: bold, size: 22, color: COLOR.titulo, leading: 1.25 });
-  espaco(4);
-  escrever('Resumo do briefing inicial', { size: 11.5, color: COLOR.suave, leading: 1.3 });
-  espaco(20);
-  escrever(sanitize(empresa), { font: bold, size: 15, color: COLOR.titulo, leading: 1.3 });
-  espaco(2);
+  // Cabeçalho: título é o produto com a empresa em destaque; a linha de
+  // baixo identifica quem respondeu, sem repetir "Resumo do briefing".
+  escrever(`${config.appTitle} (${sanitize(empresa)})`, { font: bold, size: 20, color: COLOR.titulo, leading: 1.25 });
+  espaco(8);
   const linhaRespondente = [sanitize(respondente), cargo ? sanitize(cargo) : null, contato ? sanitize(contato) : null]
     .filter(Boolean)
     .join('  ·  ');
-  escrever(`Respondido por ${linhaRespondente}  ·  ${formatarData(data)}`, {
+  escrever(`${linhaRespondente}  ·  ${formatarData(data)}`, {
     size: 10,
     color: COLOR.suave,
     leading: 1.3,
