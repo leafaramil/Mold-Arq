@@ -22,12 +22,13 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
 
   // Erros marcados como públicos já têm mensagem escrita para o usuário final
-  // (ver traduzirErro em lib/anthropic.js). Os demais viram texto genérico.
+  // (ver traduzirErro em lib/anthropic.js). Os demais viram texto genérico —
+  // e nunca incluem a mensagem interna, que pode conter detalhe que não é
+  // pra vazar pro cliente.
   res.status(err?.status || 500).json({
     erro: err?.publico
       ? err.message
       : 'Não foi possível concluir a operação. Tente novamente em alguns segundos.',
-    detalhe: err?.publico ? undefined : err?.message,
   });
 });
 

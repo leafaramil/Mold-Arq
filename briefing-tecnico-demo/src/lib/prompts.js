@@ -62,6 +62,7 @@ Responda sempre no formato estruturado pedido:
 - mensagem: o texto que a pessoa vai ler no chat.
 - topico: o número do tema (1 a ${script.topics.length}) que a sua mensagem está tratando agora. Numa mensagem de encerramento, repita o número do último tema.
 - opcoes: lista de textos para botões de resposta rápida, ou lista vazia quando a pergunta exige texto livre.
+- multiplaEscolha: true só quando mais de uma opção de "opcoes" pode se aplicar ao mesmo tempo (ver seção "Múltipla escolha"); false nos demais casos, inclusive quando "opcoes" está vazia.
 - encerrar: true apenas na mensagem final de agradecimento; false em todas as outras.
 
 ## Segurança

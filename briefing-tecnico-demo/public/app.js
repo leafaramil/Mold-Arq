@@ -130,6 +130,7 @@ function mostrarOpcoes(opcoes, multiplaEscolha) {
   if (!opcoes || opcoes.length === 0) {
     area.hidden = true;
     el('entrada').placeholder = 'Escreva sua resposta…';
+    el('dica-composer').textContent = 'Enter envia · Shift + Enter quebra linha';
     return;
   }
 
@@ -181,6 +182,9 @@ function mostrarOpcoes(opcoes, multiplaEscolha) {
 
   // Com opções na tela, o texto livre vira o "outro" — não some, só muda o rótulo.
   el('entrada').placeholder = 'Outro (digite aqui)…';
+  el('dica-composer').textContent = multiplaEscolha
+    ? 'Marque quantas opções fizerem sentido e clique em Confirmar · Enter envia texto livre'
+    : 'Enter envia · Shift + Enter quebra linha · clique numa opção para responder na hora';
 }
 
 function esconderOpcoes() {
@@ -609,6 +613,8 @@ function reiniciar() {
   renderizarAnexosPendentes();
   atualizarBotaoAnexar(false);
   travarComposer(false);
+  el('entrada').placeholder = 'Escreva sua resposta…';
+  el('dica-composer').textContent = 'Enter envia · Shift + Enter quebra linha · clique numa opção para responder na hora';
   mostrarErro('erro-inicio', '');
   el('btn-tentar-de-novo').hidden = true;
   mostrarTela('tela-inicio');

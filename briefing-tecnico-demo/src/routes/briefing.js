@@ -17,8 +17,8 @@ export const router = Router();
 
 const MAX_TEXTO = 2000;
 const MAX_NOME = 120;
-// Cobre user+assistant dos até 80 turnos da IA (MAX_AI_TURNS) com folga.
-const MAX_MENSAGENS = 200;
+// Cobre user+assistant dos até MAX_AI_TURNS (130) turnos da IA, com folga.
+const MAX_MENSAGENS = 280;
 const MAX_ITENS_RESUMO = 16;
 
 function limparTexto(valor, max) {

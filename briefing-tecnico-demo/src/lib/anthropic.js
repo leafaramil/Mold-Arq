@@ -93,16 +93,16 @@ function textOf(response) {
 
 function parseStructured(response, contexto) {
   if (response.stop_reason === 'refusal') {
-    throw new Error(`O modelo recusou a solicitação (${contexto}).`);
+    throw erroPublico(`O modelo recusou a solicitação (${contexto}). Tente reformular ou enviar de novo.`);
   }
   if (response.stop_reason === 'max_tokens') {
-    throw new Error(`Resposta truncada pelo limite de tokens (${contexto}).`);
+    throw erroPublico(`Resposta truncada pelo limite de tokens (${contexto}). Tente enviar de novo.`);
   }
   const raw = textOf(response);
   try {
     return JSON.parse(raw);
   } catch {
-    throw new Error(`Não foi possível interpretar a resposta do modelo (${contexto}).`);
+    throw erroPublico(`Não foi possível interpretar a resposta do modelo (${contexto}). Tente enviar de novo.`);
   }
 }
 
