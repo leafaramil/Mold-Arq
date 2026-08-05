@@ -26,7 +26,7 @@ Depois que a pessoa confirmar, siga o roteiro abaixo, uma pergunta por mensagem,
 ${listarTemas(script)}
 
 ## Perguntas sem resposta (mecânica de pendência técnica)
-Se a pessoa não souber responder alguma pergunta técnica, pergunte quem no time dela saberia responder, e o contato dessa pessoa (e-mail ou telefone). A partir da segunda vez que isso acontecer na mesma conversa, não pergunte um nome novo direto: primeiro pergunte se a mesma pessoa já indicada também saberia responder essa pergunta. Só peça um nome e contato novos se a resposta for não. Se a pessoa não souber nem quem seria o responsável, registre a pendência mesmo sem contato e siga em frente sem insistir. Nunca use a palavra "síndico" nem sugira contatar a administração do prédio — use sempre essa mecânica de pendência com alguém do time do cliente.
+Se a pessoa não souber responder alguma pergunta técnica, pergunte quem no time dela saberia responder, e o contato dessa pessoa (e-mail ou telefone) — pode ser numa única pergunta ("Alguém do time de vocês saberia informar isso? Se sim, me passa nome e contato.") ou em duas mensagens curtas, como preferir. Aceite qualquer forma de resposta: só o nome, só o contato, os dois juntos, os dois em mensagens separadas, ou "não sei" — nunca insista pedindo de novo algo que a pessoa já deu, e nunca trate uma resposta parcial (por exemplo, só um nome, sem contato) como se não tivesse entendido. Se faltar só o contato depois que a pessoa já deu um nome, peça o contato numa pergunta objetiva e siga em frente com o que vier. A partir da segunda vez que a mecânica de pendência acontecer na mesma conversa, não pergunte um nome novo direto: primeiro pergunte se a mesma pessoa já indicada também saberia responder essa pergunta. Só peça um nome e contato novos se a resposta for não. Se a pessoa não souber nem quem seria o responsável, registre a pendência mesmo sem contato e siga em frente sem insistir. Nunca use a palavra "síndico" nem sugira contatar a administração do prédio — use sempre essa mecânica de pendência com alguém do time do cliente.
 
 ## Regra do imóvel
 Alguns temas só fazem sentido se a empresa já ocupa hoje o espaço do projeto (definido no tema 1). Onde o objetivo do tema disser "regra do imóvel", pule a pergunta sem comentário se a empresa estiver de mudança para um endereço novo — nunca peça para a pessoa "imaginar" uma experiência que ela nunca teve.
@@ -34,6 +34,9 @@ Alguns temas só fazem sentido se a empresa já ocupa hoje o espaço do projeto 
 ## Opções de resposta — regra importante
 Vários temas têm uma lista de opções sugeridas entre colchetes no objetivo (ex.: opcoes: ["Sim", "Não"]). Preencha o campo estruturado "opcoes" com exatamente esses textos SOMENTE quando a resposta da pessoa cabe inteiramente em uma dessas escolhas, sem precisar digitar mais nada. A interface transforma cada opção num botão que já envia a resposta assim que a pessoa clica — ela não digita depois.
 Se a pergunta pedir algo que a pessoa precisa digitar (um número, um nome, uma lista do que for aplicável, uma descrição), deixe "opcoes" como lista vazia — nunca ofereça botões que respondem só uma parte da pergunta e ainda exigem completar por texto. Na dúvida, prefira texto livre.
+
+## Múltipla escolha
+Algumas perguntas de opções aceitam mais de uma resposta correta ao mesmo tempo — por exemplo, tipo de controle de acesso, onde a empresa pode usar catraca na entrada e biometria no CPD. Nesses casos, além de preencher "opcoes", marque multiplaEscolha como true: a interface deixa a pessoa marcar quantas opções fizerem sentido antes de confirmar, em vez de enviar assim que ela clica na primeira. Use multiplaEscolha true só quando de fato mais de uma opção pode se aplicar ao mesmo tempo; nas perguntas normais de either/or (Sim/Não, uma escolha excludente), deixe multiplaEscolha como false.
 
 ## Regras que nunca podem ser quebradas
 - Nunca pergunte sobre aprovação de prefeitura, alvará ou qualquer órgão público — briefings corporativos não envolvem isso.
@@ -45,6 +48,7 @@ Se a pergunta pedir algo que a pessoa precisa digitar (um número, um nome, uma 
 - Cada mensagem tem no máximo 3 frases curtas (exceto a de boas-vindas).
 - No máximo um follow-up curto por pergunta, só quando a resposta for vaga demais para ser útil depois. Fora isso, siga em frente.
 - Nunca mencione, resuma ou reconheça a resposta anterior no início da próxima mensagem (nada de "certo", "anotado", "entendi" ou repetir o que a pessoa disse) — vá direto para a próxima pergunta.
+- Quando a primeira pergunta de um tema novo for diferente do tema da mensagem anterior, comece essa mensagem com uma frase curta anunciando o novo bloco (ex.: "Agora um bloco rápido sobre segurança e acesso.") antes da pergunta em si — isso não conta como reconhecer a resposta anterior, é só situar a pessoa no roteiro. Dentro do mesmo tema, não repita esse anúncio a cada pergunta.
 - Se a pessoa já respondeu espontaneamente algo que só viria depois, não pergunte de novo do zero: siga adiante sem repetir a pergunta.
 - Nunca use markdown (nada de **negrito**, listas com hífen ou títulos). Só texto corrido.
 - A conversa inteira tem no máximo ${maxAiTurns} mensagens suas. Seja econômico: é melhor cobrir todos os temas do que se aprofundar demais em um só.
@@ -81,12 +85,17 @@ export const conversationSchema = {
         'Textos para botões de resposta rápida, preenchidos só quando a resposta cabe inteiramente numa opção. Lista vazia quando a pergunta exige texto livre.',
       items: { type: 'string' },
     },
+    multiplaEscolha: {
+      type: 'boolean',
+      description:
+        'true quando mais de uma opção de "opcoes" pode se aplicar ao mesmo tempo (a pessoa marca várias e confirma); false para escolha única com envio imediato.',
+    },
     encerrar: {
       type: 'boolean',
       description: 'true somente na mensagem final de agradecimento.',
     },
   },
-  required: ['mensagem', 'topico', 'opcoes', 'encerrar'],
+  required: ['mensagem', 'topico', 'opcoes', 'multiplaEscolha', 'encerrar'],
   additionalProperties: false,
 };
 

@@ -67,7 +67,9 @@ function lerSessao(body) {
 
 function progresso(session, topico) {
   const total = session.script.topics.length;
-  return { atual: Math.min(Math.max(Number(topico) || 1, 1), total), total };
+  const atual = Math.min(Math.max(Number(topico) || 1, 1), total);
+  const rotulo = session.script.topics.find((t) => t.id === atual)?.rotulo || '';
+  return { atual, total, rotulo };
 }
 
 /** Alguns temas mostram um botão de anexar arquivo (ver src/lib/briefingScripts.js). */
@@ -103,6 +105,7 @@ router.post(
     res.json({
       mensagem: resposta.mensagem,
       opcoes: resposta.opcoes,
+      multiplaEscolha: resposta.multiplaEscolha,
       permiteAnexo: permiteAnexo(session, resposta.topico),
       tabela: tabelaConfig(session, resposta.topico),
       progresso: progresso(session, resposta.topico),
@@ -132,6 +135,7 @@ router.post(
     res.json({
       mensagem: resposta.mensagem,
       opcoes: resposta.opcoes,
+      multiplaEscolha: resposta.multiplaEscolha,
       permiteAnexo: permiteAnexo(session, resposta.topico),
       tabela: tabelaConfig(session, resposta.topico),
       progresso: progresso(session, resposta.topico),

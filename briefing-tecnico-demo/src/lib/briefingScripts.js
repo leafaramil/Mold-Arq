@@ -16,9 +16,11 @@
  * da resposta com exatamente esses textos — a interface mostra como botões
  * que já enviam a resposta ao serem clicados (sem precisar digitar depois).
  * Por isso, `opcoes` só aparece em perguntas cuja resposta cabe inteiramente
- * numa escolha — nada que a pessoa ainda precise complementar por texto, e
- * nada que ela possa querer marcar mais de uma ao mesmo tempo (nesses casos
- * o objetivo pede texto livre).
+ * numa escolha — nada que a pessoa ainda precise complementar por texto.
+ * Quando mais de uma opção pode se aplicar ao mesmo tempo (ex.: tipo de
+ * controle de acesso), o objetivo pede explicitamente `multiplaEscolha true`
+ * nessa pergunta — a IA preenche esse campo estruturado, e a interface troca
+ * o clique-e-envia por marcar várias opções e confirmar.
  *
  * Campo `permiteAnexo` no tema: a interface mostra um botão de anexar
  * arquivo (qualquer formato, pode escolher vários de uma vez) junto da
@@ -45,7 +47,7 @@ const tecnicoBasico = {
       rotulo: 'Situação do projeto e plantas',
       permiteAnexo: true,
       objetivo:
-        'Pergunta 1: "Esse projeto é uma reforma no espaço que vocês já ocupam hoje, ou uma mudança pra um endereço novo?" — opcoes: ["Reforma no espaço que já ocupamos hoje", "Mudança para um espaço novo"]. A resposta define a "regra do imóvel" usada em vários temas seguintes: só pergunte algo no presente sobre "hoje" se a empresa ocupa o espaço atual; se for mudança, pule essas perguntas sem comentário. Pergunta 2, mensagem separada, com a redação adaptada à resposta 1: se reforma, "Vocês têm o as-built do escritório atual?"; se mudança, "Vocês têm as plantas técnicas do novo espaço?" — opcoes: ["Sim", "Não"]. Se sim, pergunta 3, sem opções (pode ser mais de uma disciplina): "Quais disciplinas vocês têm — arquitetura, elétrica, ar-condicionado, dados e voz, combate a incêndio ou detecção de fumaça?". Pergunta 4, sem opções, é só um aviso antes do anexo: "Pode anexar todos os arquivos de uma vez pelo botão de anexo — selecione todos juntos no seletor, porque depois de enviar não dá pra abrir de novo nesse tema."',
+        'Pergunta 1: "Esse projeto é uma reforma no espaço que vocês já ocupam hoje, ou uma mudança pra um endereço novo?" — opcoes: ["Reforma no espaço que já ocupamos hoje", "Mudança para um espaço novo"]. A resposta define a "regra do imóvel" usada em vários temas seguintes: só pergunte algo no presente sobre "hoje" se a empresa ocupa o espaço atual; se for mudança, pule essas perguntas sem comentário. Pergunta 2, mensagem separada, com a redação adaptada à resposta 1: se reforma, "Vocês têm o as-built do escritório atual?"; se mudança, "Vocês têm as plantas técnicas do novo espaço?" — opcoes: ["Sim", "Não"]. Pergunta 3, sem opções, é só um aviso antes de perguntar detalhes: "Pode ir anexando os arquivos pelo botão de anexo — dá pra clicar quantas vezes precisar, cada um vai entrando numa lista, e só envia quando você quiser." Se a pessoa anexar algo, pergunta 4, sem opções (pode ser mais de uma disciplina; a IA não consegue abrir o conteúdo do arquivo, só o nome chega — por isso pergunta): "Só pra confirmar, quais disciplinas esse material cobre — arquitetura, elétrica, ar-condicionado, dados e voz, combate a incêndio ou detecção de fumaça?".',
     },
     {
       id: 2,
@@ -76,7 +78,7 @@ const tecnicoBasico = {
       id: 6,
       rotulo: 'Segurança e acesso',
       objetivo:
-        'Pergunta 1: "Vão ter controle de acesso?" — opcoes: ["Sim", "Não", "Não sabem ainda"]. Se sim, pergunta 2: "Que tipo?" — opcoes: ["Crachá", "Catraca", "Biometria", "Reconhecimento facial"]; pergunta 3, sem opções: "Em quais ambientes?"; pergunta 4, sem opções: "O sistema vai ser reaproveitado, e se sim, sabem o modelo do equipamento atual?"; pergunta 5: "Esse controle vai ser unificado com o sistema do condomínio?" — opcoes: ["Sim", "Não", "Não sabem"]; pergunta 6: "Vai ser unificado com o sistema de outro site da empresa?" — opcoes: ["Sim", "Não", "Não sabem"]. Pergunta 7, mensagem separada: "Vão ter câmeras de segurança? Onde?" — sem opções (o local varia); se a pessoa mencionar câmeras em banheiros, vestiários ou copa/refeitório, avise gentilmente que a LGPD não permite por violar privacidade, e sugira reposicionar — isso é um alerta legal, não uma opção entre outras. Se vão ter câmeras, pergunta 8, sem opções: "Quantas câmeras, aproximadamente, e o sistema atual vai ser reaproveitado? Se sim, sabem o modelo?". Pergunta 9, mensagem separada: "O prédio já tem sistema de detecção de fumaça?" — opcoes: ["Sim", "Não", "Não sabem"]; se sim, follow-up sem opções perguntando quantos detectores aproximadamente e, se for reaproveitar, o modelo.',
+        'Pergunta 1: "Vão ter controle de acesso?" — opcoes: ["Sim", "Não", "Não sabem ainda"]. Se sim, pergunta 2: "Que tipo? Pode ser mais de um, por exemplo catraca na entrada e biometria no CPD." — opcoes: ["Crachá", "Catraca", "Biometria", "Reconhecimento facial"]; multiplaEscolha true nessa pergunta, já que mais de um tipo pode se aplicar em ambientes diferentes; pergunta 3, sem opções: "Em quais ambientes?"; pergunta 4, sem opções: "O sistema vai ser reaproveitado, e se sim, sabem o modelo do equipamento atual?"; pergunta 5: "Esse controle vai ser unificado com o sistema do condomínio?" — opcoes: ["Sim", "Não", "Não sabem"]; pergunta 6: "Vai ser unificado com o sistema de outro site da empresa?" — opcoes: ["Sim", "Não", "Não sabem"]. Pergunta 7, mensagem separada: "Vão ter câmeras de segurança? Onde?" — sem opções (o local varia); se a pessoa mencionar câmeras em banheiros, vestiários ou copa/refeitório, avise gentilmente que a LGPD não permite por violar privacidade, e sugira reposicionar — isso é um alerta legal, não uma opção entre outras. Se vão ter câmeras, pergunta 8, sem opções: "Quantas câmeras, aproximadamente, e o sistema atual vai ser reaproveitado? Se sim, sabem o modelo?". Pergunta 9, mensagem separada: "O prédio já tem sistema de detecção de fumaça?" — opcoes: ["Sim", "Não", "Não sabem"]; se a resposta for sim, pergunta 10, sem opções, direto (sem mencionar reaproveitamento — já ficou implícito na resposta "sim"): "Sabem quantos detectores existem, aproximadamente, e o modelo?"; se a resposta for não ou não sabem, não faça essa pergunta.',
     },
     {
       id: 7,
@@ -112,7 +114,7 @@ const tecnicoBasico = {
       id: 12,
       rotulo: 'Telefonia',
       objetivo:
-        'Pergunta 1: "O telefone funciona pela internet (VoIP) ou é central tradicional?" — opcoes: ["VoIP (pela internet)", "Central tradicional", "Não sabem"]. Pergunta 2, mensagem separada: "Têm uma central hoje?" — opcoes: ["Sim", "Não"]; se sim, follow-up: "Querem manter a atual, ou trocar?" — opcoes: ["Manter", "Trocar"]. Pergunta 3, sem opções: "Quantos ramais, aproximadamente?". Pergunta 4, sem opções: "Quantas linhas diretas, aproximadamente?". Pergunta 5: "Precisam de link E1?" — opcoes: ["Sim", "Não", "Não sabem"].',
+        'Pergunta 1: "O telefone funciona pela internet (VoIP) ou é central tradicional?" — opcoes: ["VoIP (pela internet)", "Central tradicional", "Não sabem"]. Pergunta 2, mensagem separada: "Têm uma central hoje?" — opcoes: ["Sim", "Não"]; se sim, follow-up sem opções: "Querem manter a atual, ou trocar?" — opcoes: ["Manter", "Trocar"]. Pergunta 3, mensagem separada, sem opções, sempre voltada para a necessidade do projeto novo (independente da resposta da pergunta 2): "Para o novo projeto, quantos ramais vocês estimam precisar, aproximadamente?". Pergunta 4, sem opções, mesma lógica: "E quantas linhas diretas, aproximadamente?". Pergunta 5: "Precisam de link E1 — uma linha de telefonia mais robusta, usada por centrais telefônicas de maior porte?" — opcoes: ["Sim", "Não", "Não sabem"].',
     },
     {
       id: 13,

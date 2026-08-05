@@ -158,6 +158,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     mensagem: String(parsed.mensagem || '').trim(),
     topico: Number(parsed.topico) || 1,
     opcoes: (parsed.opcoes || []).map((o) => String(o).trim()).filter(Boolean),
+    multiplaEscolha: Boolean(parsed.multiplaEscolha),
     encerrar: Boolean(parsed.encerrar) || forcarEncerramento,
   };
 }
@@ -195,8 +196,13 @@ export async function buildSummary(session) {
           content: `Transcrição da entrevista de briefing:\n\n<transcricao>\n${transcricao}\n</transcricao>\n\nGere o resumo estruturado.`,
         },
       ],
+      // Roteiro de 20 temas gera uma transcrição longa; desligamos o "pensamento"
+      // (mesma razão do turno de chat) e usamos effort "low" para dar folga ao
+      // teto de 60s da função serverless (Vercel, plano Hobby) — sem isso, o
+      // resumo de uma entrevista longa passava do tempo e travava a tela.
+      thinking: { type: 'disabled' },
       output_config: {
-        effort: 'medium', // documento final: vale um pouco mais de cuidado
+        effort: 'low',
         format: { type: 'json_schema', schema: summarySchema },
       },
     });

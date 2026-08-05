@@ -19,6 +19,7 @@ const estado = {
   finalizado: false,
   enviando: false,
   permiteAnexoAtual: false,
+  anexosPendentes: [],
 };
 
 const corpoBase = () => ({
@@ -101,10 +102,10 @@ function rolarParaFim() {
   conversa.scrollTop = conversa.scrollHeight;
 }
 
-function atualizarProgresso({ atual, total }) {
+function atualizarProgresso({ atual, total, rotulo }) {
   el('progresso-texto').textContent = estado.finalizado
     ? 'Entrevista concluída'
-    : `Pergunta ${atual} de ${total}`;
+    : `Bloco ${atual} de ${total} — ${rotulo || ''}`;
   const proporcao = estado.finalizado ? 1 : atual / total;
   el('barra-preenchida').style.width = `${Math.round(proporcao * 100)}%`;
 }
@@ -122,7 +123,7 @@ function travarComposer(travado) {
  * combina com a opção clicada: cada pergunta é respondida de um jeito só.
  */
 
-function mostrarOpcoes(opcoes) {
+function mostrarOpcoes(opcoes, multiplaEscolha) {
   const area = el('area-opcoes');
   area.replaceChildren();
 
@@ -133,14 +134,51 @@ function mostrarOpcoes(opcoes) {
   }
 
   area.hidden = false;
-  for (const opcao of opcoes) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.textContent = opcao;
-    chip.addEventListener('click', () => enviarTexto(opcao));
-    area.append(chip);
+
+  if (multiplaEscolha) {
+    const selecionadas = new Set();
+    for (const opcao of opcoes) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = opcao;
+      chip.addEventListener('click', () => {
+        if (selecionadas.has(opcao)) {
+          selecionadas.delete(opcao);
+          chip.classList.remove('chip-selecionada');
+        } else {
+          selecionadas.add(opcao);
+          chip.classList.add('chip-selecionada');
+        }
+      });
+      area.append(chip);
+    }
+
+    const confirmar = document.createElement('button');
+    confirmar.type = 'button';
+    confirmar.className = 'botao botao-pequeno';
+    confirmar.textContent = 'Confirmar';
+    confirmar.addEventListener('click', () => {
+      if (selecionadas.size === 0) {
+        mostrarErro('erro-chat', 'Marque ao menos uma opção antes de confirmar.');
+        return;
+      }
+      // A ordem das opções escolhidas segue a ordem em que apareceram na tela.
+      const texto = opcoes.filter((o) => selecionadas.has(o)).join(', ');
+      enviarComAnexos(texto);
+    });
+    area.append(confirmar);
+  } else {
+    for (const opcao of opcoes) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = opcao;
+      chip.addEventListener('click', () => enviarComAnexos(opcao));
+      area.append(chip);
+    }
   }
+
   // Com opções na tela, o texto livre vira o "outro" — não some, só muda o rótulo.
   el('entrada').placeholder = 'Outro (digite aqui)…';
 }
@@ -309,7 +347,7 @@ async function iniciarBriefing(evento) {
     el('conversa').replaceChildren();
     mostrarTela('tela-chat');
     adicionarBolha(dados.mensagem, 'ia');
-    mostrarOpcoes(dados.opcoes);
+    mostrarOpcoes(dados.opcoes, dados.multiplaEscolha);
     mostrarTabela(dados.tabela);
     atualizarBotaoAnexar(dados.permiteAnexo);
     atualizarProgresso(dados.progresso);
@@ -357,7 +395,7 @@ async function enviarTexto(texto) {
       // Pequena pausa para a pessoa ler o agradecimento antes da troca de tela.
       setTimeout(irParaResumo, 1200);
     } else {
-      mostrarOpcoes(dados.opcoes);
+      mostrarOpcoes(dados.opcoes, dados.multiplaEscolha);
       mostrarTabela(dados.tabela);
       atualizarBotaoAnexar(dados.permiteAnexo);
       travarComposer(false);
@@ -375,7 +413,22 @@ async function enviarTexto(texto) {
 
 async function enviarResposta(evento) {
   evento?.preventDefault();
-  await enviarTexto(el('entrada').value.trim());
+  await enviarComAnexos(el('entrada').value.trim());
+}
+
+/** Junta os anexos pendentes (se houver) com o texto base antes de enviar. */
+async function enviarComAnexos(textoBase) {
+  const anexos = estado.anexosPendentes;
+
+  let texto = textoBase;
+  if (anexos.length > 0) {
+    const listaAnexos = `📎 Anexei: ${anexos.join(', ')}`;
+    texto = textoBase ? `${listaAnexos}; ${textoBase}` : listaAnexos;
+  }
+
+  if (!texto) return;
+  await enviarTexto(texto);
+  limparAnexosPendentes();
 }
 
 /**
@@ -384,6 +437,13 @@ async function enviarResposta(evento) {
  * "chegou", e vai para o resumo final em PDF. O seletor aceita vários
  * arquivos de uma vez (segurando Ctrl/Cmd ou Shift na janela do sistema),
  * para não precisar reabrir o seletor a cada arquivo.
+ */
+/**
+ * Anexar é incremental: cada escolha de arquivo só entra numa lista
+ * pendente na tela (nada é enviado ainda). A pessoa pode clicar em
+ * "Anexar" quantas vezes quiser, juntando arquivos de escolhas separadas,
+ * e só quando apertar "Enviar" (ou digitar algo) tudo vira uma mensagem
+ * só. O arquivo em si nunca sai do navegador — só o nome.
  */
 function anexarArquivo() {
   if (estado.enviando || estado.finalizado) return;
@@ -394,17 +454,61 @@ function aoEscolherArquivo(evento) {
   const arquivos = [...(evento.target.files || [])];
   evento.target.value = '';
   if (arquivos.length === 0) return;
-  const nomes = arquivos.map((a) => a.name).join(', ');
-  enviarTexto(`📎 Anexei: ${nomes}`);
+  estado.anexosPendentes.push(...arquivos.map((a) => a.name));
+  renderizarAnexosPendentes();
+}
+
+function renderizarAnexosPendentes() {
+  const area = el('anexos-pendentes');
+  area.replaceChildren();
+
+  if (estado.anexosPendentes.length === 0) {
+    area.hidden = true;
+    return;
+  }
+
+  area.hidden = false;
+  estado.anexosPendentes.forEach((nome, indice) => {
+    const chip = document.createElement('span');
+    chip.className = 'anexo-pendente';
+    chip.textContent = `📎 ${nome}`;
+
+    const remover = document.createElement('button');
+    remover.type = 'button';
+    remover.textContent = '✕';
+    remover.title = 'Remover';
+    remover.addEventListener('click', () => {
+      estado.anexosPendentes.splice(indice, 1);
+      renderizarAnexosPendentes();
+    });
+
+    chip.append(remover);
+    area.append(chip);
+  });
+}
+
+function limparAnexosPendentes() {
+  estado.anexosPendentes = [];
+  renderizarAnexosPendentes();
 }
 
 async function irParaResumo() {
   mostrarTela('tela-resumo');
   el('resumo-meta').textContent = `${estado.empresa} · respondido por ${estado.respondente} (${estado.cargo})`;
+  await tentarGerarResumo();
+}
+
+/**
+ * Busca o resumo estruturado. A conversa inteira continua guardada em
+ * `estado.conversa` no navegador, então um erro aqui (ex.: tempo esgotado)
+ * não perde nada — o botão "Tentar de novo" só chama isto de novo.
+ */
+async function tentarGerarResumo() {
   el('resumo-carregando').hidden = false;
   el('resumo-conteudo').hidden = true;
   el('btn-pdf').disabled = true;
   mostrarErro('erro-resumo', '');
+  el('btn-tentar-de-novo').hidden = true;
 
   try {
     const dados = await api('/briefing/resumo', {
@@ -429,6 +533,7 @@ async function irParaResumo() {
   } catch (erro) {
     el('resumo-carregando').hidden = true;
     mostrarErro('erro-resumo', erro.message);
+    el('btn-tentar-de-novo').hidden = false;
   }
 }
 
@@ -495,14 +600,17 @@ function reiniciar() {
     resumo: null,
     finalizado: false,
     permiteAnexoAtual: false,
+    anexosPendentes: [],
   });
   el('form-inicio').reset();
   el('conversa').replaceChildren();
   esconderOpcoes();
   esconderTabela();
+  renderizarAnexosPendentes();
   atualizarBotaoAnexar(false);
   travarComposer(false);
   mostrarErro('erro-inicio', '');
+  el('btn-tentar-de-novo').hidden = true;
   mostrarTela('tela-inicio');
   el('empresa').focus();
 }
@@ -524,6 +632,7 @@ el('form-inicio').addEventListener('submit', iniciarBriefing);
 el('form-mensagem').addEventListener('submit', enviarResposta);
 el('btn-pdf').addEventListener('click', baixarPdf);
 el('btn-reiniciar').addEventListener('click', reiniciar);
+el('btn-tentar-de-novo').addEventListener('click', tentarGerarResumo);
 el('btn-anexar').addEventListener('click', anexarArquivo);
 el('input-arquivo').addEventListener('change', aoEscolherArquivo);
 el('btn-add-ambiente').addEventListener('click', adicionarLinhaTabela);

@@ -135,7 +135,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
   const jaPerguntadas = session.messages.filter((m) => m.role === 'assistant').length;
 
   if (forcarEncerramento || jaPerguntadas >= PERGUNTAS.length) {
-    return { mensagem: ENCERRAMENTO, topico: total, opcoes: [], encerrar: true };
+    return { mensagem: ENCERRAMENTO, topico: total, opcoes: [], multiplaEscolha: false, encerrar: true };
   }
 
   const pergunta = PERGUNTAS[jaPerguntadas];
@@ -143,6 +143,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     mensagem: pergunta.mensagem,
     topico: pergunta.topico,
     opcoes: pergunta.opcoes,
+    multiplaEscolha: Boolean(pergunta.multiplaEscolha),
     encerrar: false,
   };
 }

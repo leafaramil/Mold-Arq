@@ -46,7 +46,7 @@
         <div class="cartao cartao-chat">
           <div class="progresso">
             <div class="progresso-rotulo">
-              <span id="progresso-texto">Pergunta 1 de 20</span>
+              <span id="progresso-texto">Bloco 1 de 20</span>
               <span id="progresso-empresa" class="apoio-inline"></span>
             </div>
             <div class="barra"><div class="barra-preenchida" id="barra-preenchida"></div></div>
@@ -68,6 +68,8 @@
               <button class="botao" type="button" id="btn-confirmar-tabela">Confirmar</button>
             </div>
           </div>
+
+          <div class="anexos-pendentes" id="anexos-pendentes" hidden></div>
 
           <form class="composer" id="form-mensagem">
             <button class="botao-anexo" type="button" id="btn-anexar" hidden title="Anexar arquivo">📎</button>
@@ -121,6 +123,7 @@
           </article>
 
           <p class="erro" id="erro-resumo" hidden></p>
+          <button class="botao botao-secundario" type="button" id="btn-tentar-de-novo" hidden>Tentar de novo</button>
           <p class="dica" id="dica-pdf">O PDF também é salvo automaticamente na pasta <code>output/</code> do projeto.</p>
         </div>
       </section>
