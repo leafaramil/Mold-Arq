@@ -67,6 +67,23 @@ function traduzirErro(err) {
   return err;
 }
 
+/**
+ * Rede de segurança contra artefatos raros de geração: em testes reais já
+ * apareceu texto de controle vazando pra dentro do campo "mensagem" (ex.:
+ * "...?<reasoning_effort>medium</{{" ou uma resposta que era só ","), mesmo
+ * com "thinking" desligado. Isso nunca deveria acontecer, mas se acontecer é
+ * melhor limpar o resíduo do que mostrar ao cliente.
+ */
+function limparMensagem(texto) {
+  let limpo = texto.replace(/<\/?[a-zA-Z_][\w-]*(?:\s[^<>]*)?>/g, '').trim();
+  limpo = limpo.replace(/^[,.;:]+\s*/, '').trim();
+  // Essas mensagens nunca deveriam ter <, >, { ou } — se sobrar algum resíduo
+  // de tag truncada, corta dali em diante em vez de mostrar o lixo ao cliente.
+  const indiceLixo = limpo.search(/[<>{}]/);
+  if (indiceLixo !== -1) limpo = limpo.slice(0, indiceLixo).trim();
+  return limpo;
+}
+
 function textOf(response) {
   return response.content
     .filter((block) => block.type === 'text')
@@ -173,7 +190,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
 
   const parsed = parseStructured(response, 'condução da entrevista');
   return {
-    mensagem: String(parsed.mensagem || '').trim(),
+    mensagem: limparMensagem(String(parsed.mensagem || '')),
     topico: Number(parsed.topico) || 1,
     opcoes: (parsed.opcoes || []).map((o) => String(o).trim()).filter(Boolean),
     multiplaEscolha: Boolean(parsed.multiplaEscolha),
