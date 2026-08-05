@@ -17,9 +17,9 @@ export const router = Router();
 
 const MAX_TEXTO = 2000;
 const MAX_NOME = 120;
-// Cobre user+assistant dos até 50 turnos da IA (MAX_AI_TURNS) com folga.
-const MAX_MENSAGENS = 120;
-const MAX_ITENS_RESUMO = 12;
+// Cobre user+assistant dos até 80 turnos da IA (MAX_AI_TURNS) com folga.
+const MAX_MENSAGENS = 200;
+const MAX_ITENS_RESUMO = 16;
 
 function limparTexto(valor, max) {
   return String(valor ?? '')
@@ -75,6 +75,11 @@ function permiteAnexo(session, topico) {
   return Boolean(session.script.topics.find((t) => t.id === Number(topico))?.permiteAnexo);
 }
 
+/** Alguns temas trocam a caixa de texto por uma tabela editável (ver src/lib/briefingScripts.js). */
+function tabelaConfig(session, topico) {
+  return session.script.topics.find((t) => t.id === Number(topico))?.tabela || null;
+}
+
 /** Contexto da aplicação para a interface. */
 router.get('/config', (req, res) => {
   const script = getScript(config.scriptId);
@@ -99,6 +104,7 @@ router.post(
       mensagem: resposta.mensagem,
       opcoes: resposta.opcoes,
       permiteAnexo: permiteAnexo(session, resposta.topico),
+      tabela: tabelaConfig(session, resposta.topico),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
       modoDemonstracao: !ia.usingLiveApi,
@@ -127,6 +133,7 @@ router.post(
       mensagem: resposta.mensagem,
       opcoes: resposta.opcoes,
       permiteAnexo: permiteAnexo(session, resposta.topico),
+      tabela: tabelaConfig(session, resposta.topico),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
     });

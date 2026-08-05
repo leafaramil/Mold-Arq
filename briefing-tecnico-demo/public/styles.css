@@ -305,6 +305,71 @@ textarea:focus {
   border-color: var(--tinta);
 }
 
+/* Tabela de ambientes (tema de tomadas/pontos de rede) */
+.tabela-ambientes {
+  padding: 4px 2px 16px;
+  border-top: 1px solid var(--linha);
+  margin-top: 4px;
+}
+
+#tabela-grade {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+#tabela-grade th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-suave);
+  padding: 0 6px 6px;
+}
+
+#tabela-grade td {
+  padding: 3px 6px;
+  vertical-align: middle;
+}
+
+.tabela-nome {
+  width: 100%;
+  min-width: 110px;
+}
+
+#tabela-grade input[type='number'] {
+  width: 64px;
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.tabela-remover {
+  font: inherit;
+  font-size: 13px;
+  color: var(--tinta-suave);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.tabela-remover:hover {
+  color: var(--erro);
+}
+
+.tabela-acoes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.botao-pequeno {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
 /* Composer */
 .composer {
   display: flex;

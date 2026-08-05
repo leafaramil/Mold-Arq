@@ -4,7 +4,7 @@
 
 Demo de uma ferramenta de levantamento técnico de infraestrutura conversacional, para a
 etapa de engenharia de projetos de arquitetura corporativa (elétrica, rede, segurança,
-ar-condicionado, servidores). A IA conduz uma entrevista de 19 temas — traduzindo perguntas
+ar-condicionado, servidores). A IA conduz uma entrevista de 20 temas — traduzindo perguntas
 tipicamente técnicas (kVA, categoria de cabeamento, specs de rack) para uma linguagem que
 qualquer pessoa da empresa consegue responder, mesmo sem ser da área — e ao final gera um
 PDF com o resumo estruturado, recomendações iniciais e pendências técnicas a confirmar.
@@ -66,14 +66,17 @@ condicionais).
 ## O fluxo
 
 1. **Tela inicial** — nome da empresa, nome, cargo e contato de quem responde.
-2. **Aviso de abertura** — a primeira mensagem da IA avisa que as perguntas ficam técnicas,
-   que o ideal é ter alguém de TI por perto, que ela reformula se algo não ficar claro, e que
-   o que não for respondido vira pendência para completar depois.
+2. **Boas-vindas** — a primeira mensagem da IA é uma saudação simples explicando o objetivo
+   da entrevista, com um botão de confirmação antes de começar a primeira pergunta.
 3. **Conversa** — a IA faz uma pergunta por vez, com indicador de progresso
-   ("Pergunta 3 de 19"). Muitas perguntas vêm com botões de resposta rápida (opções
-   clicáveis, sempre com um campo de "outro" ao lado); duas delas (plantas do espaço e norma
-   interna de instalação) mostram também um botão de anexar arquivo — nesta demo, o arquivo
-   não sai do navegador, só o nome entra na conversa e no resumo.
+   ("Pergunta 3 de 20"). Muitas perguntas vêm com botões de resposta rápida (clicar já envia
+   a resposta, sem precisar de um segundo clique) — só aparecem quando a resposta cabe
+   inteiramente numa escolha; onde a pessoa precisa digitar algo, é só texto livre. Duas
+   perguntas (plantas do espaço e norma interna de instalação) mostram também um botão de
+   anexar arquivo, aceitando vários de uma vez — nesta demo, o arquivo não sai do navegador,
+   só o nome entra na conversa e no resumo. Um tema (tomadas e pontos de rede por ambiente)
+   troca a caixa de texto por uma tabela editável, com ambientes padrão e a opção de adicionar
+   outros.
 4. **Pendências técnicas** — sempre que a pessoa não souber responder algo, a IA pergunta
    quem no time saberia e o contato; da segunda pendência em diante, primeiro pergunta se o
    mesmo contato já indicado serve, só pedindo um nome novo se a resposta for não.
@@ -108,7 +111,7 @@ briefing-tecnico-demo/
 │   └── lib/
 │       ├── anthropic.js         # chamadas ao Claude (structured outputs)
 │       ├── prompts.js           # system prompts e schemas de saída
-│       ├── briefingScripts.js   # roteiro de 19 temas
+│       ├── briefingScripts.js   # roteiro de 20 temas
 │       ├── offlineFallback.js   # roteiro fixo do modo demonstração
 │       ├── limiteDeUso.js       # freio de levantamentos por dia
 │       └── pdf.js               # diagramação do PDF (pdf-lib)
@@ -162,7 +165,7 @@ Todas as variáveis abaixo têm padrão e são opcionais (ver `.env.example`):
 | `PORT` | `3000` | porta do servidor local |
 | `APP_TITLE` | `Levantamento Técnico` | título na tela e no PDF |
 | `BRIEFING_SCRIPT` | `tecnico-basico` | roteiro de perguntas ativo |
-| `MAX_AI_TURNS` | `50` | teto de mensagens da IA na conversa |
+| `MAX_AI_TURNS` | `80` | teto de mensagens da IA na conversa |
 | `OUTPUT_DIR` | `output` | pasta onde os PDFs são salvos (ignorado na nuvem) |
 | `MAX_BRIEFINGS_POR_DIA` | `40` | freio contra uso inesperado da chave; `0` desliga |
 | `ANTHROPIC_TIMEOUT_MS` | `20000` | tempo máximo esperando a API por tentativa |

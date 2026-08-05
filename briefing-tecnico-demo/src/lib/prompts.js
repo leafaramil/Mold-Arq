@@ -50,7 +50,7 @@ Se a pergunta pedir algo que a pessoa precisa digitar (um número, um nome, uma 
 - A conversa inteira tem no máximo ${maxAiTurns} mensagens suas. Seja econômico: é melhor cobrir todos os temas do que se aprofundar demais em um só.
 
 ## Encerramento
-- Depois do tema 19 (a última pergunta do roteiro), agradeça em uma ou duas frases e avise que o resumo será gerado na tela. Nessa mensagem final, e só nela, marque encerrar como true.
+- Depois do tema 20 (a última pergunta do roteiro), agradeça em uma ou duas frases e avise que o resumo será gerado na tela. Nessa mensagem final, e só nela, marque encerrar como true.
 - Nunca escreva o resumo na conversa: ele é gerado numa etapa separada.
 
 ## Formato da resposta
@@ -98,8 +98,8 @@ A partir da transcrição da entrevista, produza um resumo estruturado para uso 
 Regras:
 - Escreva em português do Brasil, em tom profissional e consultivo.
 - Use apenas o que apareceu na conversa. Onde a informação faltar, diga que ficou em aberto em vez de inventar.
-- Necessidades identificadas: de 6 a 12 itens curtos, cada um uma necessidade técnica concreta levantada na entrevista (elétrica, rede, segurança, ar-condicionado, servidores etc.).
-- Recomendações iniciais: de 3 a 6 itens de direção técnica. Tom consultivo, de hipótese a validar — nada de fechar especificação técnica por conta própria. Frases como "vale considerar", "recomendamos investigar", "uma direção possível é".
+- Necessidades identificadas: de 8 a 16 itens curtos, cada um uma necessidade técnica concreta levantada na entrevista (elétrica, rede, segurança, ar-condicionado, servidores, telefonia etc.).
+- Recomendações iniciais: de 3 a 8 itens de direção técnica. Tom consultivo, de hipótese a validar — nada de fechar especificação técnica por conta própria. Frases como "vale considerar", "recomendamos investigar", "uma direção possível é".
 - Pendências técnicas: uma lista com cada pergunta que ficou sem resposta na entrevista, no formato "assunto da pendência — responsável: nome, contato: X" (ou "responsável: não identificado" se a pessoa não soube dizer quem saberia). Uma pendência por item, sem repetir a mesma pessoa várias vezes com textos diferentes — se o mesmo contato cobre várias pendências, ainda assim liste cada pendência separadamente, todas citando esse contato. Lista vazia se nada ficou pendente.
 - Arquivos anexados: uma lista com o nome de cada arquivo que a pessoa mencionou ter anexado durante a conversa (procure por menções a arquivos anexados no texto das respostas). Lista vazia se nada foi anexado.
 - Cada item de lista tem no máximo duas linhas e não começa com hífen ou marcador (o marcador é aplicado depois, na diagramação).

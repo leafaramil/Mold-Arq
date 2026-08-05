@@ -46,7 +46,7 @@
         <div class="cartao cartao-chat">
           <div class="progresso">
             <div class="progresso-rotulo">
-              <span id="progresso-texto">Pergunta 1 de 19</span>
+              <span id="progresso-texto">Pergunta 1 de 20</span>
               <span id="progresso-empresa" class="apoio-inline"></span>
             </div>
             <div class="barra"><div class="barra-preenchida" id="barra-preenchida"></div></div>
@@ -55,6 +55,19 @@
           <div class="conversa" id="conversa" aria-live="polite"></div>
 
           <div class="opcoes" id="area-opcoes" hidden></div>
+
+          <div class="tabela-ambientes" id="area-tabela" hidden>
+            <table id="tabela-grade">
+              <thead>
+                <tr id="tabela-cabecalho"></tr>
+              </thead>
+              <tbody id="tabela-linhas"></tbody>
+            </table>
+            <div class="tabela-acoes">
+              <button class="botao-secundario botao-pequeno" type="button" id="btn-add-ambiente">+ Adicionar ambiente</button>
+              <button class="botao" type="button" id="btn-confirmar-tabela">Confirmar</button>
+            </div>
+          </div>
 
           <form class="composer" id="form-mensagem">
             <button class="botao-anexo" type="button" id="btn-anexar" hidden title="Anexar arquivo">📎</button>

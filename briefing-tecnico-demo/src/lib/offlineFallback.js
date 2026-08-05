@@ -113,6 +113,11 @@ const PERGUNTAS = [
   },
   {
     topico: 19,
+    mensagem: 'Agora preencha a tabela abaixo com a quantidade de tomadas e pontos de rede por ambiente, e adicione outros ambientes se precisar.',
+    opcoes: [],
+  },
+  {
+    topico: 20,
     mensagem: 'Por último: tem algo específico de infraestrutura que queira registrar e que não foi perguntado?',
     opcoes: [],
   },

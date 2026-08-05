@@ -128,6 +128,7 @@ function mostrarOpcoes(opcoes) {
 
   if (!opcoes || opcoes.length === 0) {
     area.hidden = true;
+    el('entrada').placeholder = 'Escreva sua resposta…';
     return;
   }
 
@@ -140,6 +141,8 @@ function mostrarOpcoes(opcoes) {
     chip.addEventListener('click', () => enviarTexto(opcao));
     area.append(chip);
   }
+  // Com opções na tela, o texto livre vira o "outro" — não some, só muda o rótulo.
+  el('entrada').placeholder = 'Outro (digite aqui)…';
 }
 
 function esconderOpcoes() {
@@ -150,6 +153,124 @@ function esconderOpcoes() {
 function atualizarBotaoAnexar(permite) {
   estado.permiteAnexoAtual = Boolean(permite);
   el('btn-anexar').hidden = !estado.permiteAnexoAtual;
+}
+
+/* ---------- Tabela de ambientes (tema de tomadas/pontos de rede) ----------
+ * Em vez de texto livre, esse tema mostra uma grade: uma linha por ambiente
+ * (já vem com os ambientes mais comuns preenchidos) e uma coluna por medida
+ * (tomadas, pontos de rede). A pessoa só digita os números, pode adicionar
+ * ambientes que não estavam na lista, e ao confirmar tudo vira uma única
+ * resposta de texto — pelo mesmo caminho de sempre, sem rota nova no servidor.
+ */
+
+function criarLinhaTabela(colunas, nomeInicial, remover) {
+  const linha = document.createElement('tr');
+
+  const celulaNome = document.createElement('td');
+  const campoNome = document.createElement('input');
+  campoNome.type = 'text';
+  campoNome.className = 'tabela-nome';
+  campoNome.value = nomeInicial;
+  campoNome.placeholder = 'Ambiente';
+  celulaNome.append(campoNome);
+  linha.append(celulaNome);
+
+  for (const coluna of colunas) {
+    const celula = document.createElement('td');
+    const campo = document.createElement('input');
+    campo.type = 'number';
+    campo.min = '0';
+    campo.inputMode = 'numeric';
+    campo.placeholder = '0';
+    campo.dataset.coluna = coluna;
+    celula.append(campo);
+    linha.append(celula);
+  }
+
+  const celulaAcao = document.createElement('td');
+  if (remover) {
+    const botaoRemover = document.createElement('button');
+    botaoRemover.type = 'button';
+    botaoRemover.className = 'tabela-remover';
+    botaoRemover.textContent = '✕';
+    botaoRemover.title = 'Remover linha';
+    botaoRemover.addEventListener('click', () => linha.remove());
+    celulaAcao.append(botaoRemover);
+  }
+  linha.append(celulaAcao);
+
+  return linha;
+}
+
+function mostrarTabela(config) {
+  if (!config) {
+    esconderTabela();
+    return;
+  }
+
+  const { colunas, ambientesPadrao } = config;
+
+  const cabecalho = el('tabela-cabecalho');
+  cabecalho.replaceChildren();
+  const thAmbiente = document.createElement('th');
+  thAmbiente.textContent = 'Ambiente';
+  cabecalho.append(thAmbiente);
+  for (const coluna of colunas) {
+    const th = document.createElement('th');
+    th.textContent = coluna;
+    cabecalho.append(th);
+  }
+  cabecalho.append(document.createElement('th'));
+
+  const linhas = el('tabela-linhas');
+  linhas.replaceChildren();
+  for (const ambiente of ambientesPadrao) {
+    linhas.append(criarLinhaTabela(colunas, ambiente, false));
+  }
+
+  el('area-tabela').hidden = false;
+  // .composer define display:flex, que sobrescreveria o [hidden] do atributo
+  // — por isso o display é setado direto aqui, em vez de usar .hidden.
+  el('form-mensagem').style.display = 'none';
+  esconderOpcoes();
+}
+
+function esconderTabela() {
+  el('area-tabela').hidden = true;
+  el('form-mensagem').style.display = '';
+}
+
+function adicionarLinhaTabela() {
+  const colunas = [...el('tabela-cabecalho').querySelectorAll('th')]
+    .slice(1, -1)
+    .map((th) => th.textContent);
+  el('tabela-linhas').append(criarLinhaTabela(colunas, '', true));
+}
+
+/** Junta as linhas preenchidas da tabela numa única resposta de texto. */
+function confirmarTabela() {
+  const linhas = [...el('tabela-linhas').querySelectorAll('tr')];
+  const partes = [];
+
+  for (const linha of linhas) {
+    const nome = linha.querySelector('.tabela-nome').value.trim();
+    const campos = [...linha.querySelectorAll('input[data-coluna]')];
+    const valores = campos
+      .map((campo) => ({ coluna: campo.dataset.coluna, valor: campo.value.trim() }))
+      .filter((v) => v.valor && Number(v.valor) > 0);
+
+    if (!nome || valores.length === 0) continue;
+    const descricaoValores = valores.map((v) => `${v.valor} ${v.coluna.toLowerCase()}`).join(', ');
+    partes.push(`${nome}: ${descricaoValores}`);
+  }
+
+  if (partes.length === 0) {
+    mostrarErro('erro-chat', 'Preencha ao menos um ambiente antes de confirmar.');
+    return;
+  }
+
+  esconderTabela();
+  enviarTexto(partes.join('; '));
 }
 
 /* ---------- Fluxo ---------- */
@@ -189,6 +310,7 @@ async function iniciarBriefing(evento) {
     mostrarTela('tela-chat');
     adicionarBolha(dados.mensagem, 'ia');
     mostrarOpcoes(dados.opcoes);
+    mostrarTabela(dados.tabela);
     atualizarBotaoAnexar(dados.permiteAnexo);
     atualizarProgresso(dados.progresso);
     el('entrada').focus();
@@ -210,6 +332,7 @@ async function enviarTexto(texto) {
   adicionarBolha(texto, 'cliente');
   el('entrada').value = '';
   esconderOpcoes();
+  esconderTabela();
   mostrarDigitando(true);
 
   try {
@@ -235,6 +358,7 @@ async function enviarTexto(texto) {
       setTimeout(irParaResumo, 1200);
     } else {
       mostrarOpcoes(dados.opcoes);
+      mostrarTabela(dados.tabela);
       atualizarBotaoAnexar(dados.permiteAnexo);
       travarComposer(false);
       el('entrada').focus();
@@ -375,6 +499,7 @@ function reiniciar() {
   el('form-inicio').reset();
   el('conversa').replaceChildren();
   esconderOpcoes();
+  esconderTabela();
   atualizarBotaoAnexar(false);
   travarComposer(false);
   mostrarErro('erro-inicio', '');
@@ -401,6 +526,8 @@ el('btn-pdf').addEventListener('click', baixarPdf);
 el('btn-reiniciar').addEventListener('click', reiniciar);
 el('btn-anexar').addEventListener('click', anexarArquivo);
 el('input-arquivo').addEventListener('change', aoEscolherArquivo);
+el('btn-add-ambiente').addEventListener('click', adicionarLinhaTabela);
+el('btn-confirmar-tabela').addEventListener('click', confirmarTabela);
 
 el('entrada').addEventListener('keydown', (evento) => {
   if (evento.key === 'Enter' && !evento.shiftKey) {
