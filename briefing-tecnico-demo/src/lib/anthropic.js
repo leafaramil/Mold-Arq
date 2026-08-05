@@ -123,6 +123,16 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     });
   }
 
+  // Cache de prompt: a conversa é reenviada inteira a cada turno (o servidor
+  // não guarda estado), então sem isso o custo cresce com o quadrado do
+  // número de turnos. Marcando a última mensagem, o prefixo até aqui vira
+  // cache hit no próximo turno (que reenvia este prefixo + 2 mensagens
+  // novas) — só a parte nova é cobrada em cheio.
+  const ultimaMensagem = messages[messages.length - 1];
+  ultimaMensagem.content = [
+    { type: 'text', text: ultimaMensagem.content, cache_control: { type: 'ephemeral' } },
+  ];
+
   let response;
   try {
     response = await client.messages.create({
@@ -130,14 +140,22 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
       // A resposta de cada turno é curta (uma pergunta), então 1500 tokens
       // sobram — um teto menor também limita o pior caso de latência.
       max_tokens: 1500,
-      system: buildConversationSystemPrompt({
-        script: session.script,
-        empresa: session.empresa,
-        respondente: session.respondente,
-        cargo: session.cargo,
-        appTitle: config.appTitle,
-        maxAiTurns: config.maxAiTurns,
-      }),
+      system: [
+        {
+          type: 'text',
+          text: buildConversationSystemPrompt({
+            script: session.script,
+            empresa: session.empresa,
+            respondente: session.respondente,
+            cargo: session.cargo,
+            appTitle: config.appTitle,
+            maxAiTurns: config.maxAiTurns,
+          }),
+          // O roteiro é o mesmo em toda a conversa — cache evita reprocessar
+          // um texto de milhares de tokens a cada pergunta.
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages,
       // Claude Opus 5 pensa por padrão quando "thinking" não é informado —
       // isso soma segundos reais a cada turno do chat sem necessidade aqui
@@ -193,7 +211,15 @@ export async function buildSummary(session) {
       messages: [
         {
           role: 'user',
-          content: `Transcrição da entrevista de briefing:\n\n<transcricao>\n${transcricao}\n</transcricao>\n\nGere o resumo estruturado.`,
+          // Cache: se o "Tentar de novo" reenviar a mesma transcrição, essa
+          // chamada vira cache hit em vez de reprocessar tudo de novo.
+          content: [
+            {
+              type: 'text',
+              text: `Transcrição da entrevista de briefing:\n\n<transcricao>\n${transcricao}\n</transcricao>\n\nGere o resumo estruturado.`,
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
         },
       ],
       // Roteiro de 20 temas gera uma transcrição longa; desligamos o "pensamento"
