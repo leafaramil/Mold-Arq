@@ -177,10 +177,13 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
       // Claude Opus 5 pensa por padrão quando "thinking" não é informado —
       // isso soma segundos reais a cada turno do chat sem necessidade aqui
       // (é uma pergunta de roteiro, não um raciocínio complexo). Desligado
-      // explicitamente; permitido até effort "high", e estamos em "low".
+      // explicitamente; permitido até effort "high".
       thinking: { type: 'disabled' },
       output_config: {
-        effort: 'low', // conversa de chat: prioriza latência
+        // "low" priorizava latência, mas em bateria de testes reais produziu
+        // algumas respostas com texto corrompido (tag de controle vazando pra
+        // mensagem). "medium" é um pouco mais lento/caro, mas mais confiável.
+        effort: 'medium',
         format: { type: 'json_schema', schema: conversationSchema },
       },
     });
