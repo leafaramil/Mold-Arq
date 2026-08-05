@@ -252,6 +252,15 @@ export async function buildSummary(session) {
         effort: 'low',
         format: { type: 'json_schema', schema: summarySchema },
       },
+    }, {
+      // O timeout padrão do cliente (20s, pensado pra manter o chat ágil) se
+      // mostrou curto demais aqui em teste real — o resumo de uma entrevista
+      // longa exigia várias tentativas manuais de "Tentar de novo". Uma única
+      // tentativa com bem mais tempo (sem retry automático, que só cortaria
+      // esse tempo ao meio) tem mais chance de terminar dentro do teto de 60s
+      // da função serverless.
+      timeout: 50_000,
+      maxRetries: 0,
     });
   } catch (err) {
     throw traduzirErro(err);
