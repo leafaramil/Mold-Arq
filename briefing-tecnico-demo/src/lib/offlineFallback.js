@@ -115,6 +115,7 @@ const PERGUNTAS = [
     topico: 19,
     mensagem: 'Agora preencha a tabela abaixo com a quantidade de tomadas e pontos de rede por ambiente, e adicione outros ambientes se precisar.',
     opcoes: [],
+    mostrarTabela: true,
   },
   {
     topico: 20,
@@ -135,7 +136,14 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
   const jaPerguntadas = session.messages.filter((m) => m.role === 'assistant').length;
 
   if (forcarEncerramento || jaPerguntadas >= PERGUNTAS.length) {
-    return { mensagem: ENCERRAMENTO, topico: total, opcoes: [], multiplaEscolha: false, encerrar: true };
+    return {
+      mensagem: ENCERRAMENTO,
+      topico: total,
+      opcoes: [],
+      multiplaEscolha: false,
+      mostrarTabela: false,
+      encerrar: true,
+    };
   }
 
   const pergunta = PERGUNTAS[jaPerguntadas];
@@ -144,6 +152,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     topico: pergunta.topico,
     opcoes: pergunta.opcoes,
     multiplaEscolha: Boolean(pergunta.multiplaEscolha),
+    mostrarTabela: Boolean(pergunta.mostrarTabela),
     encerrar: false,
   };
 }

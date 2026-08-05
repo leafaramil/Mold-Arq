@@ -77,8 +77,15 @@ function permiteAnexo(session, topico) {
   return Boolean(session.script.topics.find((t) => t.id === Number(topico))?.permiteAnexo);
 }
 
-/** Alguns temas trocam a caixa de texto por uma tabela editável (ver src/lib/briefingScripts.js). */
-function tabelaConfig(session, topico) {
+/**
+ * Alguns temas trocam a caixa de texto por uma tabela editável (ver
+ * src/lib/briefingScripts.js), mas só na mensagem específica que introduz a
+ * grade — o mesmo tema pode ter outra pergunta (ex.: equipamentos de uso
+ * específico) que é texto livre. Por isso depende do sinal mostrarTabela que
+ * a IA devolve por mensagem, não só do número do tema.
+ */
+function tabelaConfig(session, topico, mostrarTabela) {
+  if (!mostrarTabela) return null;
   return session.script.topics.find((t) => t.id === Number(topico))?.tabela || null;
 }
 
@@ -107,7 +114,7 @@ router.post(
       opcoes: resposta.opcoes,
       multiplaEscolha: resposta.multiplaEscolha,
       permiteAnexo: permiteAnexo(session, resposta.topico),
-      tabela: tabelaConfig(session, resposta.topico),
+      tabela: tabelaConfig(session, resposta.topico, resposta.mostrarTabela),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
       modoDemonstracao: !ia.usingLiveApi,
@@ -137,7 +144,7 @@ router.post(
       opcoes: resposta.opcoes,
       multiplaEscolha: resposta.multiplaEscolha,
       permiteAnexo: permiteAnexo(session, resposta.topico),
-      tabela: tabelaConfig(session, resposta.topico),
+      tabela: tabelaConfig(session, resposta.topico, resposta.mostrarTabela),
       progresso: progresso(session, resposta.topico),
       finalizado: resposta.encerrar,
     });

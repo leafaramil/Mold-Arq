@@ -197,6 +197,7 @@ export async function nextQuestion(session, { forcarEncerramento = false } = {})
     topico: Number(parsed.topico) || 1,
     opcoes: (parsed.opcoes || []).map((o) => String(o).trim()).filter(Boolean),
     multiplaEscolha: Boolean(parsed.multiplaEscolha),
+    mostrarTabela: Boolean(parsed.mostrarTabela),
     encerrar: Boolean(parsed.encerrar) || forcarEncerramento,
   };
 }

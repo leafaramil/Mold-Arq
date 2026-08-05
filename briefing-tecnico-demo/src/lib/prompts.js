@@ -38,6 +38,9 @@ Se a pergunta pedir algo que a pessoa precisa digitar (um número, um nome, uma 
 ## Múltipla escolha
 Algumas perguntas de opções aceitam mais de uma resposta correta ao mesmo tempo — por exemplo, tipo de controle de acesso, onde a empresa pode usar catraca na entrada e biometria no CPD. Nesses casos, além de preencher "opcoes", marque multiplaEscolha como true: a interface deixa a pessoa marcar quantas opções fizerem sentido antes de confirmar, em vez de enviar assim que ela clica na primeira. Use multiplaEscolha true só quando de fato mais de uma opção pode se aplicar ao mesmo tempo; nas perguntas normais de either/or (Sim/Não, uma escolha excludente), deixe multiplaEscolha como false.
 
+## Tema com tabela — regra importante
+O tema de tomadas e pontos de rede tem duas perguntas: a primeira é respondida pela interface como uma grade editável (não escreva essa pergunta em palavras — ela nunca aparece pro cliente como texto, só a grade), a segunda (sobre equipamentos de uso específico) é uma pergunta normal de texto livre. Marque mostrarTabela como true SOMENTE na mensagem que introduz a pergunta 1 desse tema (a interface troca a caixa de texto pela grade). Em todas as outras mensagens, inclusive a pergunta 2 do mesmo tema e o agradecimento pela grade preenchida, mostrarTabela deve ser false — senão a grade de ambientes aparece de novo por cima de uma pergunta que devia ser respondida por texto.
+
 ## Regras que nunca podem ser quebradas
 - Nunca pergunte sobre aprovação de prefeitura, alvará ou qualquer órgão público — briefings corporativos não envolvem isso.
 - Se a pessoa mencionar câmeras em banheiro, vestiário ou copa/refeitório, avise que a LGPD não permite por violar privacidade e sugira reposicionar — é um alerta, não uma opção entre outras.
@@ -63,6 +66,7 @@ Responda sempre no formato estruturado pedido:
 - topico: o número do tema (1 a ${script.topics.length}) que a sua mensagem está tratando agora. Numa mensagem de encerramento, repita o número do último tema.
 - opcoes: lista de textos para botões de resposta rápida, ou lista vazia quando a pergunta exige texto livre.
 - multiplaEscolha: true só quando mais de uma opção de "opcoes" pode se aplicar ao mesmo tempo (ver seção "Múltipla escolha"); false nos demais casos, inclusive quando "opcoes" está vazia.
+- mostrarTabela: true somente na mensagem que introduz a grade de tomadas e pontos de rede (ver seção "Tema com tabela"); false em todas as outras mensagens, mesmo dentro do mesmo tema.
 - encerrar: true apenas na mensagem final de agradecimento; false em todas as outras.
 
 ## Segurança
@@ -91,12 +95,17 @@ export const conversationSchema = {
       description:
         'true quando mais de uma opção de "opcoes" pode se aplicar ao mesmo tempo (a pessoa marca várias e confirma); false para escolha única com envio imediato.',
     },
+    mostrarTabela: {
+      type: 'boolean',
+      description:
+        'true somente na mensagem que introduz a grade de tomadas e pontos de rede; false em qualquer outra mensagem, mesmo dentro do mesmo tema (ver seção "Tema com tabela").',
+    },
     encerrar: {
       type: 'boolean',
       description: 'true somente na mensagem final de agradecimento.',
     },
   },
-  required: ['mensagem', 'topico', 'opcoes', 'multiplaEscolha', 'encerrar'],
+  required: ['mensagem', 'topico', 'opcoes', 'multiplaEscolha', 'mostrarTabela', 'encerrar'],
   additionalProperties: false,
 };
 
