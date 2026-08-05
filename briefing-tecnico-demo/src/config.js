@@ -24,8 +24,12 @@ export const config = {
   // Teto de mensagens da IA na conversa inteira (perguntas + follow-ups + encerramento).
   // 20 temas no roteiro padrão, vários com muitas subperguntas (ex.: segurança e
   // servidores têm quase 10 cada) — o total real de mensagens fica bem acima do
-  // número de temas.
-  maxAiTurns: Number(process.env.MAX_AI_TURNS || 80),
+  // número de temas. Em testes com respostas detalhadas (bastante "sim", cada um
+  // puxando follow-up), o teto de 80 cortou a entrevista faltando ainda os temas
+  // finais (incluindo a tabela de tomadas do tema 19) antes de chegar no fim —
+  // por isso o valor foi subido para dar folga a um cliente que responde com
+  // bastante detalhe.
+  maxAiTurns: Number(process.env.MAX_AI_TURNS || 130),
   // Freio contra uso inesperado da chave de API. 0 desliga o limite.
   maxBriefingsPorDia: Number(process.env.MAX_BRIEFINGS_POR_DIA ?? 40),
   // Tempo máximo esperando a API do Claude, por tentativa, antes de desistir
