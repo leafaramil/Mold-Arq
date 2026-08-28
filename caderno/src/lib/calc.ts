@@ -305,8 +305,11 @@ export function calcularAvisos(
 
 // ---------- o cálculo central: "livre para gastar" (seção 4.2 a 4.11) ----------
 
-function temHistorico(estados: Estados, mesRef: string): boolean {
-  return !!estados[mesRef] && Object.keys(estados[mesRef]).length > 0;
+function temHistorico(model: DataModel, mesRef: string): boolean {
+  if (model.estados[mesRef] && Object.keys(model.estados[mesRef]).length > 0) return true;
+  // um mês pode ter só movimentação de ZUL (sem nenhuma despesa/receita
+  // tocada) e ainda assim ser um mês "usado" — o saldo precisa atravessar.
+  return Object.values(model.caixinhas).some((cx) => cx.mov.some((m) => m.mes === mesRef));
 }
 
 /**
@@ -384,7 +387,7 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
   );
 
   const mesAnterior = mesVizinho(mesRef, -1);
-  const saldoInicial = temHistorico(model.estados, mesAnterior)
+  const saldoInicial = temHistorico(model, mesAnterior)
     ? calcularLivre(model, mesAnterior, hoje).livre
     : model.config.saldoInicial;
 
