@@ -56,4 +56,5 @@ export type Action =
     }
   | { type: "delParcela"; parcelaId: string }
   | { type: "retirarPote"; pote: "emergencia" | "folga"; histId: string; desc: string; valor: number }
-  | { type: "definirSaldoInicialZul"; chave: string; movId: string; saldo: number; mes: string };
+  | { type: "definirSaldoInicialZul"; chave: string; movId: string; saldo: number; mes: string }
+  | { type: "registrarConsumoIA"; mes: string; custo: number };

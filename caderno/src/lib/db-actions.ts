@@ -193,6 +193,11 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
     case "delParcela":
       await sql`DELETE FROM parcelas WHERE id = ${action.parcelaId}`;
       return;
+    case "registrarConsumoIA":
+      await sql`UPDATE config SET consumo_ia = consumo_ia + ${action.custo} WHERE id = 1`;
+      await sql`INSERT INTO consumo_ia_mes (mes, valor) VALUES (${action.mes}, ${action.custo})
+                ON CONFLICT (mes) DO UPDATE SET valor = consumo_ia_mes.valor + EXCLUDED.valor`;
+      return;
     case "retirarPote":
       await sql`INSERT INTO pote_hist (id, pote, descricao, valor, data)
                 VALUES (${action.histId}, ${action.pote}, ${action.desc}, ${action.valor}, ${new Date().toISOString().slice(0, 10)})

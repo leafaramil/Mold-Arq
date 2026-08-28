@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcularAvisos,
   calcularLivre,
+  custoIA,
   dizimoDe,
   dizimoPrevisto,
   estadoDe,
@@ -227,6 +228,17 @@ describe("faturaDoCartao — validação obrigatória (seção 7.4)", () => {
     for (const [mes, valor] of esperado) {
       expect(faturaDoCartao(PARCELAS_INICIAIS, "cartao_rafa", mes)).toBe(valor);
     }
+  });
+});
+
+// ---------- custo do Aristides ----------
+
+describe("custoIA", () => {
+  it("aplica a fórmula da seção 6.4 (Sonnet US$3/US$15 por milhão, câmbio 5,4)", () => {
+    expect(custoIA(1000, 500)).toBe(0.0567);
+  });
+  it("zero tokens → custo zero", () => {
+    expect(custoIA(0, 0)).toBe(0);
   });
 });
 

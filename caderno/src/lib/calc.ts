@@ -26,6 +26,18 @@ import { ESTADO_VAZIO } from "./types";
 
 export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
+// ---------- consumo do Aristides (seção 6.4) ----------
+
+/**
+ * Custo estimado em reais de uma chamada à API da Anthropic.
+ * Referência: Sonnet ~US$3/milhão de tokens de entrada, US$15/milhão de
+ * saída, câmbio aproximado 5,4.
+ */
+export function custoIA(tokensEntrada: number, tokensSaida: number, cambio = 5.4): number {
+  const dolares = (tokensEntrada / 1e6) * 3 + (tokensSaida / 1e6) * 15;
+  return Math.round(dolares * cambio * 10000) / 10000;
+}
+
 // ---------- datas / meses ----------
 
 /** "YYYY-MM" a partir de uma Date. */

@@ -206,6 +206,17 @@ export function applyAction(model: DataModel, action: Action): DataModel {
       };
     case "delParcela":
       return { ...model, parcelas: model.parcelas.filter((p) => p.id !== action.parcelaId) };
+    case "registrarConsumoIA": {
+      const round4 = (n: number) => Math.round((n + Number.EPSILON) * 10000) / 10000;
+      return {
+        ...model,
+        config: {
+          ...model.config,
+          consumoIA: round4(model.config.consumoIA + action.custo),
+          consumoIAMes: { ...model.config.consumoIAMes, [action.mes]: round4((model.config.consumoIAMes[action.mes] ?? 0) + action.custo) },
+        },
+      };
+    }
     case "retirarPote": {
       const chave = action.pote === "emergencia" ? "emergenciaHist" : "folgaHist";
       return {

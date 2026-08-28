@@ -70,7 +70,9 @@ function AppShell() {
           <Calendario model={model} mes={mes} setMes={setMes} dispatch={dispatch} mostrarToast={mostrarToast} onClose={() => setTela("home")} />
         )}
 
-        {tela === "aristides" && <Aristides nome={model.config.assistente} onClose={() => setTela("home")} />}
+        {tela === "aristides" && (
+          <Aristides model={model} mes={mes} nome={model.config.assistente} dispatch={dispatch} onClose={() => setTela("home")} />
+        )}
 
         {tela === "despesas" && (
           <ListaDespesas model={model} mes={mes} setMes={setMes} dispatch={dispatch} mostrarToast={mostrarToast} onClose={() => setTela("home")} />

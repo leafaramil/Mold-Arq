@@ -9,9 +9,11 @@ repositório — sem relação de identidade visual ou deploy entre os dois.
 ## Stack
 
 - Next.js (App Router) + React
-- Vercel Postgres (`@vercel/postgres`) — schema normalizado em `sql/schema.sql`
-- PWA (manifest + service worker) — fase 5
-- API Route própria intermediando a API da Anthropic (Aristides) — fase 6
+- Postgres via a integração Neon da Vercel (`@neondatabase/serverless`) —
+  schema normalizado em `sql/schema.sql`
+- PWA (manifest + service worker), instalável e funcional offline
+- API Routes próprias intermediando a API da Anthropic (Aristides) — a
+  chave nunca chega ao cliente
 
 ## Banco de dados
 
@@ -39,6 +41,20 @@ Ver `sql/schema.sql` para o schema completo e comentários.
 3. `npm install`
 4. `npm run db:migrate` — cria as tabelas
 5. `npm run db:seed` — carrega os dados iniciais da seção 7 da especificação
+
+## Aristides (voz + consultor)
+
+Precisa de uma chave da API da Anthropic (console.anthropic.com — produto
+separado da assinatura Claude.ai, cobrança por uso), configurada **só** como
+variável de ambiente no servidor (`ANTHROPIC_API_KEY`, em `.env.local` local
+ou nas Environment Variables do projeto na Vercel). Nunca vai para o bundle
+do cliente — todas as chamadas passam por `/api/aristides/*`.
+
+- Comando de voz e resposta falada usam a Web Speech API do navegador (sem
+  custo). Sem internet, o app avisa e pede para anotar manualmente — não
+  tenta nenhuma interpretação alternativa.
+- O consumo de tokens é convertido em reais e mostrado em Ajustes (mês
+  atual, previsão e acumulado).
 
 ## Rodando localmente
 

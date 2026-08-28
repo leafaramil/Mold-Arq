@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { nomeMes, mesVizinho } from "@/lib/calc";
@@ -22,13 +23,13 @@ export function Centro({ children }: { children: ReactNode }) {
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export const Card = forwardRef<HTMLDivElement, { children: ReactNode; style?: CSSProperties }>(function Card({ children, style }, ref) {
   return (
-    <div style={{ background: T.raised, border: `1px solid ${T.line}`, borderRadius: 16, padding: 15, marginBottom: 11, ...style }}>
+    <div ref={ref} style={{ background: T.raised, border: `1px solid ${T.line}`, borderRadius: 16, padding: 15, marginBottom: 11, ...style }}>
       {children}
     </div>
   );
-}
+});
 
 export function Tit({ children }: { children: ReactNode }) {
   return (
