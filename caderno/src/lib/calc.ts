@@ -90,13 +90,30 @@ export function valorBaseDespesa(d: Pick<Despesa, "valor" | "provisaoAnual">): n
   return d.provisaoAnual != null ? round2(d.provisaoAnual / 12) : d.valor;
 }
 
-/** Resolve uma despesa para um mês: aplica apenasMes, overrides e deriva a quinzena do dia. */
+/**
+ * Resolve uma despesa para um mês: aplica apenasMes, parcelamento avulso,
+ * overrides e deriva a quinzena do dia.
+ *
+ * Uma despesa com `parcelamento` só existe nos meses em que a parcela está
+ * ativa (mesma regra de uma fatura de cartão, seção 4.8) — fora desse
+ * intervalo, ela simplesmente não aparece, como se fosse `apenasMes` só que
+ * para um intervalo de meses em vez de um único.
+ */
 export function resolverDespesa(d: Despesa, mesRef: string): ResolvedDespesa | null {
   if (d.apenasMes && d.apenasMes !== mesRef) return null;
+
+  let valorBase = valorBaseDespesa(d);
+  let parcelaInfo: { atual: number; total: number } | null = null;
+  if (d.parcelamento) {
+    if (!parcelaAtivaNoMes(d.parcelamento, mesRef)) return null;
+    valorBase = d.parcelamento.valor;
+    parcelaInfo = { atual: numeroDaParcela(d.parcelamento.base, d.parcelamento.atual, mesRef), total: d.parcelamento.total };
+  }
+
   const ov = d.overrides?.[mesRef];
   if (ov?.removido) return null;
-  const valor = ov?.valor !== undefined ? ov.valor : valorBaseDespesa(d);
-  return { ...d, valor, q: quinzenaDoDia(d.dia, d.q) };
+  const valor = ov?.valor !== undefined ? ov.valor : valorBase;
+  return { ...d, valor, q: quinzenaDoDia(d.dia, d.q), parcelaInfo };
 }
 
 /**
@@ -117,15 +134,29 @@ export function resolverCartao(c: Cartao, parcelas: Parcela[], mesRef: string): 
   return { ...c, valor: faturaDoCartao(parcelas, c.id, mesRef), q: quinzenaDoDia(c.vencimento, "Q1") };
 }
 
-// ---------- parcelamentos e cartões ----------
+// ---------- parcelamentos (de cartão ou avulsos numa despesa) ----------
+
+/** Número sequencial de uma parcela num mês, dado o mês/parcela de referência. */
+export function numeroDaParcela(base: string, atual: number, mesRef: string): number {
+  const [by, bm] = base.split("-").map(Number);
+  const [ry, rm] = mesRef.split("-").map(Number);
+  return atual + ((ry - by) * 12 + (rm - bm));
+}
+
+/**
+ * Se uma parcela (de cartão — seção 4.8 — ou avulsa numa despesa) está ativa
+ * num mês. `total >= 9999` é o mesmo padrão usado nos cartões para "recorrente
+ * sem fim" (ex: assinaturas).
+ */
+export function parcelaAtivaNoMes(p: { atual: number; total: number; base: string }, mesRef: string): boolean {
+  const n = numeroDaParcela(p.base, p.atual, mesRef);
+  if (p.total >= 9999) return n >= p.atual;
+  return n >= p.atual && n <= p.total;
+}
 
 /** Valor da parcela de `p` no mês `mesRef` (0 se estiver fora do intervalo). */
 export function parcelaNoMes(p: Parcela, mesRef: string): number {
-  const [by, bm] = p.base.split("-").map(Number);
-  const [ry, rm] = mesRef.split("-").map(Number);
-  const n = p.atual + ((ry - by) * 12 + (rm - bm));
-  if (p.total >= 9999) return n >= p.atual ? p.parcela : 0;
-  return n >= p.atual && n <= p.total ? p.parcela : 0;
+  return parcelaAtivaNoMes(p, mesRef) ? p.parcela : 0;
 }
 
 /**

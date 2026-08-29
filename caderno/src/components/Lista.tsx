@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { fmt, uid } from "@/lib/format";
-import { mediaRealDe, resolverDespesa, resolverReceita } from "@/lib/calc";
+import { mediaRealDe, nomeMes, resolverDespesa, resolverReceita } from "@/lib/calc";
 import type { Action } from "@/lib/action-types";
 import type { DataModel, Quinzena, ResolvedDespesa, ResolvedReceita } from "@/lib/types";
 import { Btn, Card, NavMes, Tit, Topo } from "./ui";
@@ -32,7 +32,7 @@ export function ListaDespesas({
   const itens = model.despesas.map((d) => resolverDespesa(d, mes)).filter((d): d is ItemDespesa => d !== null);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [open, setOpen] = useState(false);
-  const [n, setN] = useState({ nome: "", valor: "", dia: "", q: "Q1" as Quinzena });
+  const [n, setN] = useState({ nome: "", valor: "", dia: "", q: "Q1" as Quinzena, parcelado: false, parcelaAtual: "1", parcelaTotal: "" });
 
   function editar(id: string, v: string) {
     const valor = parseFloat(v.replace(",", ".")) || 0;
@@ -67,9 +67,9 @@ export function ListaDespesas({
               {i.icone} {i.nome}
             </div>
             <div style={{ fontSize: 9.5, color: T.inkSoft }}>
-              {i.dia ? `dia ${i.dia}` : "sem data"}
+              {i.parcelaInfo ? `parcela ${i.parcelaInfo.atual}/${i.parcelaInfo.total}` : i.dia ? `dia ${i.dia}` : "sem data"}
               {i.apenasMes ? " · só neste mês" : ""}
-              {media ? ` · média ${fmt(media.media)}` : ""}
+              {!i.parcelaInfo && media ? ` · média ${fmt(media.media)}` : ""}
             </div>
           </div>
           <EditavelValor valor={i.valor} onEditar={(v) => editar(i.id, v)} />
@@ -106,7 +106,7 @@ export function ListaDespesas({
             style={{ width: "100%", padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, marginBottom: 7, fontSize: 13, fontFamily: "inherit" }}
           />
           <input
-            placeholder="Valor"
+            placeholder={n.parcelado ? "Valor de cada parcela" : "Valor"}
             type="number"
             value={n.valor}
             onChange={(e) => setN({ ...n, valor: e.target.value })}
@@ -122,28 +122,71 @@ export function ListaDespesas({
               onChange={(e) => setN({ ...n, dia: e.target.value })}
               style={{ flex: 1, padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 12, fontFamily: "inherit" }}
             />
-            <select
-              value={n.q}
-              onChange={(e) => setN({ ...n, q: e.target.value as Quinzena })}
-              style={{ flex: 1, padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 12, fontFamily: "inherit" }}
-            >
-              <option value="Q1">1ª quinzena</option>
-              <option value="Q2">2ª quinzena</option>
-            </select>
+            {!n.parcelado && (
+              <select
+                value={n.q}
+                onChange={(e) => setN({ ...n, q: e.target.value as Quinzena })}
+                style={{ flex: 1, padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 12, fontFamily: "inherit" }}
+              >
+                <option value="Q1">1ª quinzena</option>
+                <option value="Q2">2ª quinzena</option>
+              </select>
+            )}
           </div>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: T.ink, marginBottom: 9, cursor: "pointer" }}>
+            <input type="checkbox" checked={n.parcelado} onChange={(e) => setN({ ...n, parcelado: e.target.checked })} />
+            É parcelado (financiamento, boleto em várias vezes — não é fatura de cartão)
+          </label>
+
+          {n.parcelado && (
+            <div style={{ display: "flex", gap: 7, marginBottom: 9 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9.5, color: T.inkSoft, fontWeight: 700, marginBottom: 3 }}>QUANTAS PARCELAS AO TODO</div>
+                <input
+                  type="number"
+                  min={1}
+                  value={n.parcelaTotal}
+                  onChange={(e) => setN({ ...n, parcelaTotal: e.target.value })}
+                  style={{ width: "100%", padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 12, fontFamily: "inherit" }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9.5, color: T.inkSoft, fontWeight: 700, marginBottom: 3 }}>ESSA É A Nº</div>
+                <input
+                  type="number"
+                  min={1}
+                  value={n.parcelaAtual}
+                  onChange={(e) => setN({ ...n, parcelaAtual: e.target.value })}
+                  style={{ width: "100%", padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 12, fontFamily: "inherit" }}
+                />
+              </div>
+            </div>
+          )}
+          {n.parcelado && (
+            <div style={{ fontSize: 10, color: T.inkSoft, marginBottom: 9 }}>
+              Vai aparecer como {n.parcelaAtual || "1"}/{n.parcelaTotal || "N"} em {nomeMes(mes)}, e ir subindo mês a mês até acabar.
+            </div>
+          )}
+
           <Btn
             v="gold"
             onClick={() => {
               if (!n.nome) return;
               const dia = n.dia ? parseInt(n.dia, 10) : null;
+              const valor = parseFloat(n.valor) || 0;
+              const parcelamento =
+                n.parcelado && n.parcelaTotal
+                  ? { valor, atual: parseInt(n.parcelaAtual, 10) || 1, total: parseInt(n.parcelaTotal, 10), base: mes }
+                  : undefined;
               dispatch({
                 type: "addDespesa",
                 itemId: uid(),
                 mes,
                 apenasEsseMes: false,
-                dados: { nome: n.nome, icone: "📌", valor: parseFloat(n.valor) || 0, dia },
+                dados: { nome: n.nome, icone: "📌", valor, dia, parcelamento },
               });
-              setN({ nome: "", valor: "", dia: "", q: "Q1" });
+              setN({ nome: "", valor: "", dia: "", q: "Q1", parcelado: false, parcelaAtual: "1", parcelaTotal: "" });
               setOpen(false);
             }}
             style={{ marginBottom: 7 }}

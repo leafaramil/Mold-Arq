@@ -156,14 +156,24 @@ export function applyAction(model: DataModel, action: Action): DataModel {
             id: action.itemId,
             nome: action.dados.nome,
             icone: action.dados.icone,
-            valor: action.dados.valor,
+            valor: action.dados.parcelamento ? action.dados.parcelamento.valor : action.dados.valor,
             dia: action.dados.dia,
             q: "Q1",
             provisaoAnual: null,
+            parcelamento: action.dados.parcelamento ?? null,
             overrides: {},
-            apenasMes: action.apenasEsseMes ? action.mes : null,
+            apenasMes: action.dados.parcelamento ? null : action.apenasEsseMes ? action.mes : null,
           },
         ],
+      };
+    case "definirParcelamento":
+      return {
+        ...model,
+        despesas: model.despesas.map((d) =>
+          d.id !== action.despesaId
+            ? d
+            : { ...d, parcelamento: action.parcelamento, valor: action.parcelamento ? action.parcelamento.valor : d.valor },
+        ),
       };
     case "addReceita":
       return {

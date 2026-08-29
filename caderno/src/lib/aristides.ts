@@ -36,7 +36,8 @@ export function retratoFinanceiro(model: DataModel, mes: string, hoje: Date): st
     const st = estadoDe(e);
     const media = mediaRealDe(d.id, d.overrides, model.estados, mes);
     const estadoTxto = st === "pago" ? `pago ${fmt(e.pago)}` : st === "separado" ? `separado ${fmt(e.separado)}, gasto ${fmt(gastoTotal(e.gastos))}` : "em aberto";
-    return `- ${d.nome}: previsto ${fmt(previsto(d.valor, media))}${d.dia ? `, vence dia ${d.dia}` : ""} (${estadoTxto})`;
+    const parcelaTxt = d.parcelaInfo ? `, parcela ${d.parcelaInfo.atual}/${d.parcelaInfo.total}` : "";
+    return `- ${d.nome}: previsto ${fmt(previsto(d.valor, media))}${d.dia ? `, vence dia ${d.dia}` : ""}${parcelaTxt} (${estadoTxto})`;
   };
 
   const linhasReceitas = receitas

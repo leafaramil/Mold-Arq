@@ -143,11 +143,32 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
       }
       return;
     }
-    case "addDespesa":
+    case "addDespesa": {
+      const valorInicial = action.dados.parcelamento ? action.dados.parcelamento.valor : action.dados.valor;
+      const apenasMes = action.dados.parcelamento ? null : action.apenasEsseMes ? action.mes : null;
       await sql`INSERT INTO despesas (id, nome, icone, valor, dia, q, apenas_mes)
-                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${action.dados.valor}, ${action.dados.dia}, 'Q1', ${action.apenasEsseMes ? action.mes : null})
+                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${valorInicial}, ${action.dados.dia}, 'Q1', ${apenasMes})
                 ON CONFLICT (id) DO NOTHING`;
+      if (action.dados.parcelamento) {
+        const p = action.dados.parcelamento;
+        await sql`INSERT INTO despesa_parcelamento (despesa_id, valor, atual, total, base)
+                  VALUES (${action.itemId}, ${p.valor}, ${p.atual}, ${p.total}, ${p.base})
+                  ON CONFLICT (despesa_id) DO NOTHING`;
+      }
       return;
+    }
+    case "definirParcelamento": {
+      if (action.parcelamento) {
+        const p = action.parcelamento;
+        await sql`INSERT INTO despesa_parcelamento (despesa_id, valor, atual, total, base)
+                  VALUES (${action.despesaId}, ${p.valor}, ${p.atual}, ${p.total}, ${p.base})
+                  ON CONFLICT (despesa_id) DO UPDATE SET valor = EXCLUDED.valor, atual = EXCLUDED.atual, total = EXCLUDED.total, base = EXCLUDED.base`;
+        await sql`UPDATE despesas SET valor = ${p.valor} WHERE id = ${action.despesaId}`;
+      } else {
+        await sql`DELETE FROM despesa_parcelamento WHERE despesa_id = ${action.despesaId}`;
+      }
+      return;
+    }
     case "addReceita":
       await sql`INSERT INTO receitas (id, nome, icone, valor, dia, quando, q, ativa, reserva, dizimo, deduz, apenas_mes)
                 VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${action.dados.valor}, ${action.dados.dia}, ${action.dados.quando}, ${action.dados.q}, true, false, true, false, ${action.apenasEsseMes ? action.mes : null})

@@ -11,6 +11,8 @@ import {
   mediaRealDe,
   mesDaPrimeiraParcela,
   mesVizinho,
+  numeroDaParcela,
+  parcelaAtivaNoMes,
   parcelaNoMes,
   quinzenaDoDia,
   resolverCartao,
@@ -196,6 +198,94 @@ describe("resolvedores", () => {
     agua.overrides["2026-09"] = { valor: 350 };
     expect(resolverDespesa(agua, "2026-09")!.valor).toBe(350);
     expect(resolverDespesa(agua, "2026-10")!.valor).toBe(290.4);
+  });
+});
+
+// ---------- parcelamento avulso numa despesa (não é fatura de cartão) ----------
+
+describe("parcelaAtivaNoMes / numeroDaParcela", () => {
+  const p = { atual: 1, total: 13, base: "2026-09" };
+
+  it("está ativa no mês-base e nos seguintes, até o total", () => {
+    expect(parcelaAtivaNoMes(p, "2026-09")).toBe(true);
+    expect(numeroDaParcela(p.base, p.atual, "2026-09")).toBe(1);
+    expect(parcelaAtivaNoMes(p, "2026-10")).toBe(true);
+    expect(numeroDaParcela(p.base, p.atual, "2026-10")).toBe(2);
+    expect(parcelaAtivaNoMes(p, "2027-09")).toBe(true); // 13ª parcela
+    expect(numeroDaParcela(p.base, p.atual, "2027-09")).toBe(13);
+  });
+
+  it("não está mais ativa depois do total", () => {
+    expect(parcelaAtivaNoMes(p, "2027-10")).toBe(false); // seria a 14ª
+  });
+
+  it("não está ativa antes do mês-base", () => {
+    expect(parcelaAtivaNoMes(p, "2026-08")).toBe(false);
+  });
+
+  it("total 9999 nunca acaba (mesmo padrão dos cartões)", () => {
+    const recorrente = { atual: 1, total: 9999, base: "2026-09" };
+    expect(parcelaAtivaNoMes(recorrente, "2030-01")).toBe(true);
+  });
+});
+
+describe("resolverDespesa com parcelamento avulso", () => {
+  it("aparece com o valor e o número da parcela nos meses ativos", () => {
+    const despesa = {
+      id: "ipva_financiado",
+      nome: "IPVA financiado",
+      icone: "🚗",
+      valor: 0,
+      dia: 10,
+      q: "Q1" as const,
+      provisaoAnual: null,
+      overrides: {},
+      apenasMes: null,
+      parcelamento: { valor: 140, atual: 1, total: 12, base: "2026-09" },
+    };
+    const setembro = resolverDespesa(despesa, "2026-09")!;
+    expect(setembro.valor).toBe(140);
+    expect(setembro.parcelaInfo).toEqual({ atual: 1, total: 12 });
+
+    const outubro = resolverDespesa(despesa, "2026-10")!;
+    expect(outubro.parcelaInfo).toEqual({ atual: 2, total: 12 });
+  });
+
+  it("some do calendário antes de começar e depois de terminar", () => {
+    const despesa = {
+      id: "financiamento",
+      nome: "Financiamento",
+      icone: "📄",
+      valor: 0,
+      dia: null,
+      q: "Q1" as const,
+      provisaoAnual: null,
+      overrides: {},
+      apenasMes: null,
+      parcelamento: { valor: 300, atual: 1, total: 3, base: "2026-09" },
+    };
+    expect(resolverDespesa(despesa, "2026-08")).toBeNull(); // antes de começar
+    expect(resolverDespesa(despesa, "2026-09")).not.toBeNull();
+    expect(resolverDespesa(despesa, "2026-10")).not.toBeNull();
+    expect(resolverDespesa(despesa, "2026-11")).not.toBeNull(); // 3ª e última
+    expect(resolverDespesa(despesa, "2026-12")).toBeNull(); // já acabou
+  });
+
+  it("um override ainda pode ajustar o valor de uma parcela específica", () => {
+    const despesa = {
+      id: "financiamento",
+      nome: "Financiamento",
+      icone: "📄",
+      valor: 0,
+      dia: null,
+      q: "Q1" as const,
+      provisaoAnual: null,
+      overrides: { "2026-10": { valor: 999 } },
+      apenasMes: null,
+      parcelamento: { valor: 300, atual: 1, total: 3, base: "2026-09" },
+    };
+    expect(resolverDespesa(despesa, "2026-09")!.valor).toBe(300);
+    expect(resolverDespesa(despesa, "2026-10")!.valor).toBe(999);
   });
 });
 

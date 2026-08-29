@@ -5,6 +5,16 @@ export interface ItemOverride {
   removido?: boolean;
 }
 
+// Parcelamento avulso de uma despesa que NÃO é fatura de cartão (financiamento,
+// boleto em N vezes, etc.) — mesmo formato de uma parcela de cartão (seção 4.8),
+// só que anexado direto à despesa em vez de a um cartaoId.
+export interface Parcelamento {
+  valor: number; // valor de cada parcela
+  atual: number; // número da parcela no mês-base
+  total: number; // total de parcelas (9999 = recorrente sem fim, como nos cartões)
+  base: string; // mês de referência de `atual`, ex: "2026-08"
+}
+
 export interface Despesa {
   id: string;
   nome: string;
@@ -13,12 +23,14 @@ export interface Despesa {
   dia: number | null;
   q: Quinzena; // só usado quando dia === null
   provisaoAnual: number | null;
+  parcelamento: Parcelamento | null;
   overrides: Record<string, ItemOverride>;
   apenasMes: string | null;
 }
 
 export interface ResolvedDespesa extends Despesa {
   q: Quinzena; // sempre resolvida (derivada do dia, ou fallback)
+  parcelaInfo: { atual: number; total: number } | null; // "3/13", pra exibir na interface
 }
 
 export interface Receita {
