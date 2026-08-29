@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CadernoProvider, useCaderno } from "@/lib/store";
 import { calcularAvisos, calcularLivre, resolverCartao, resolverDespesa } from "@/lib/calc";
+import { useEscutaCuringa } from "@/lib/wakeword";
 import { T } from "@/lib/theme";
 import { Login } from "@/components/Login";
 import { OfertaBiometria, TelaDesbloqueio } from "@/components/Biometria";
@@ -33,9 +34,20 @@ function AppShell() {
     ofertaBiometria,
     ativarBiometria,
     dispensarOfertaBiometria,
+    escutaCuringa,
+    alternarEscutaCuringa,
   } = useCaderno();
   const [tela, setTela] = useState<Tela>("home");
+  const [gatilhoAristides, setGatilhoAristides] = useState<{ texto: string; ts: number } | null>(null);
   const hoje = useMemo(() => new Date(), []);
+
+  const nomeAssistente = model?.config.assistente ?? "";
+  const escutaAtiva = escutaCuringa && !!nome && !travado && !!model && tela !== "aristides";
+  const aoAcionarCuringa = useCallback((resto: string) => {
+    setTela("aristides");
+    setGatilhoAristides({ texto: resto, ts: Date.now() });
+  }, []);
+  useEscutaCuringa(escutaAtiva, nomeAssistente, aoAcionarCuringa);
 
   if (carregando && !model) return <Centro>Carregando…</Centro>;
   if (!nome) return <Login onOk={entrar} />;
@@ -61,6 +73,29 @@ function AppShell() {
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", justifyContent: "center", padding: "20px 12px" }}>
       <div style={{ width: 400, maxWidth: "100%" }}>
         {ofertaBiometria && <OfertaBiometria onAtivar={ativarBiometria} onDispensar={dispensarOfertaBiometria} />}
+        {escutaAtiva && (
+          <div
+            title={`Escutando "${nomeAssistente}"`}
+            style={{
+              position: "fixed",
+              bottom: 16,
+              right: 16,
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: T.ink,
+              color: T.paper,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 13,
+              opacity: 0.55,
+              zIndex: 400,
+            }}
+          >
+            👂
+          </div>
+        )}
         {offline && (
           <div style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", background: T.brick, color: "#fff", padding: "7px 16px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, zIndex: 500 }}>
             Sem internet — gravando neste aparelho
@@ -91,7 +126,7 @@ function AppShell() {
         )}
 
         {tela === "aristides" && (
-          <Aristides model={model} mes={mes} nome={model.config.assistente} dispatch={dispatch} onClose={() => setTela("home")} />
+          <Aristides model={model} mes={mes} nome={model.config.assistente} dispatch={dispatch} onClose={() => setTela("home")} gatilho={gatilhoAristides} />
         )}
 
         {tela === "despesas" && (
@@ -103,7 +138,17 @@ function AppShell() {
         )}
 
         {tela === "ajustes" && (
-          <Ajustes model={model} mes={mes} nome={nome} dispatch={dispatch} mostrarToast={mostrarToast} onSair={sair} onClose={() => setTela("home")} />
+          <Ajustes
+            model={model}
+            mes={mes}
+            nome={nome}
+            dispatch={dispatch}
+            mostrarToast={mostrarToast}
+            onSair={sair}
+            onClose={() => setTela("home")}
+            escutaCuringa={escutaCuringa}
+            onAlternarEscutaCuringa={alternarEscutaCuringa}
+          />
         )}
       </div>
     </div>
