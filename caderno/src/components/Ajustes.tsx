@@ -16,6 +16,8 @@ export function Ajustes({
   mostrarToast,
   onSair,
   onClose,
+  escutaCuringa,
+  onAlternarEscutaCuringa,
 }: {
   model: DataModel;
   mes: string;
@@ -24,6 +26,8 @@ export function Ajustes({
   mostrarToast: (msg: string) => void;
   onSair: () => void;
   onClose: () => void;
+  escutaCuringa: boolean;
+  onAlternarEscutaCuringa: (v: boolean) => void;
 }) {
   const [np, setNp] = useState({ desc: "", parcela: "", atual: "1", total: "12", diaCompra: "" });
   const [addCartao, setAddCartao] = useState<string | null>(null);
@@ -327,6 +331,29 @@ export function Ajustes({
           >
             {model.config.vozAtiva ? "ligado" : "desligado"}
           </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <span style={{ fontSize: 12, color: T.ink }}>Escuta contínua (chama pelo nome em qualquer tela)</span>
+          <div
+            onClick={() => onAlternarEscutaCuringa(!escutaCuringa)}
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "6px 12px",
+              borderRadius: 8,
+              cursor: "pointer",
+              background: escutaCuringa ? T.sageSoft : T.paper,
+              border: `1px solid ${T.line}`,
+              color: escutaCuringa ? T.sage : T.inkSoft,
+              flexShrink: 0,
+              marginLeft: 8,
+            }}
+          >
+            {escutaCuringa ? "ligado" : "desligado"}
+          </div>
+        </div>
+        <div style={{ fontSize: 10, color: T.inkSoft, marginTop: 6, lineHeight: 1.4 }}>
+          Com o Caderno aberto (em qualquer tela), fala o nome de {model.config.assistente} que ele já responde — sem precisar tocar em nada. Só funciona com o app na tela, não com ela apagada.
         </div>
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: T.inkSoft, padding: "2px 0" }}>

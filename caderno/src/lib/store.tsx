@@ -11,6 +11,7 @@ const CACHE_KEY = "caderno-modelo";
 const FILA_KEY = "caderno-fila";
 const NOME_KEY = "caderno-nome";
 const BIOMETRIA_KEY = "caderno-biometria";
+const ESCUTA_KEY = "caderno-escuta-curinga";
 
 interface BiometriaSalva {
   nome: string;
@@ -79,6 +80,9 @@ interface CadernoContextValue {
   ofertaBiometria: boolean;
   ativarBiometria: () => Promise<boolean>;
   dispensarOfertaBiometria: () => void;
+  // escuta contínua pelo nome do assistente em qualquer tela do app
+  escutaCuringa: boolean;
+  alternarEscutaCuringa: (v: boolean) => void;
 }
 
 const CadernoContext = createContext<CadernoContextValue | null>(null);
@@ -93,6 +97,7 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
   const [travado, setTravado] = useState(false);
   const [ofertaBiometria, setOfertaBiometria] = useState(false);
+  const [escutaCuringa, setEscutaCuringa] = useState(false);
   const filaRef = useRef<Action[]>([]);
   const flushando = useRef(false);
 
@@ -156,7 +161,21 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
       // ignora
     }
     const biometria = lerBiometria();
-    if (nomeSalvo && biometria && biometria.nome === nomeSalvo) setTravado(true);
+    if (nomeSalvo && biometria && biometria.nome === nomeSalvo) {
+      setTravado(true);
+    } else if (nomeSalvo && !biometria) {
+      // nome já estava salvo de uma sessão anterior (antes da trava existir, ou biometria nunca ativada) —
+      // oferece aqui também, não só no clique de login, senão quem já tinha o app aberto nunca via a oferta
+      void suportaBiometria().then((suporta) => {
+        if (suporta) setOfertaBiometria(true);
+      });
+    }
+
+    try {
+      setEscutaCuringa(localStorage.getItem(ESCUTA_KEY) === "1");
+    } catch {
+      // ignora
+    }
 
     filaRef.current = lerFila();
     const cache = lerCache();
@@ -248,6 +267,15 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
 
   const dispensarOfertaBiometria = useCallback(() => setOfertaBiometria(false), []);
 
+  const alternarEscutaCuringa = useCallback((v: boolean) => {
+    setEscutaCuringa(v);
+    try {
+      localStorage.setItem(ESCUTA_KEY, v ? "1" : "0");
+    } catch {
+      // ignora
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       model,
@@ -267,8 +295,29 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
       ofertaBiometria,
       ativarBiometria,
       dispensarOfertaBiometria,
+      escutaCuringa,
+      alternarEscutaCuringa,
     }),
-    [model, carregando, offline, sincronizando, mes, nome, entrar, sair, dispatch, toast, mostrarToast, travado, tentarDesbloquear, ofertaBiometria, ativarBiometria, dispensarOfertaBiometria],
+    [
+      model,
+      carregando,
+      offline,
+      sincronizando,
+      mes,
+      nome,
+      entrar,
+      sair,
+      dispatch,
+      toast,
+      mostrarToast,
+      travado,
+      tentarDesbloquear,
+      ofertaBiometria,
+      ativarBiometria,
+      dispensarOfertaBiometria,
+      escutaCuringa,
+      alternarEscutaCuringa,
+    ],
   );
 
   return <CadernoContext.Provider value={value}>{children}</CadernoContext.Provider>;

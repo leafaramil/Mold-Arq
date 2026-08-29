@@ -5,6 +5,7 @@ import { T, fontSerif } from "@/lib/theme";
 import { fmt } from "@/lib/format";
 import { indiceDados, retratoFinanceiro } from "@/lib/aristides";
 import { propostaParaAcao, type PropostaAcao } from "@/lib/aristides-tools";
+import { pegarConstrutorSR } from "@/lib/speech-types";
 import type { Action } from "@/lib/action-types";
 import type { DataModel } from "@/lib/types";
 import { Btn, Card, Topo } from "./ui";
@@ -12,20 +13,6 @@ import { Btn, Card, Topo } from "./ui";
 interface Mensagem {
   de: "eu" | "ele";
   texto: string;
-}
-
-// Tipagem mínima do Web Speech API — não faz parte do lib.dom padrão do TS.
-interface SpeechRecognitionResultLike {
-  results: { [i: number]: { [j: number]: { transcript: string } } };
-}
-interface SpeechRecognitionLike extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  onresult: ((ev: SpeechRecognitionResultLike) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
 }
 
 let vozesCarregadas: SpeechSynthesisVoice[] = [];
@@ -43,12 +30,15 @@ export function Aristides({
   nome,
   dispatch,
   onClose,
+  gatilho,
 }: {
   model: DataModel;
   mes: string;
   nome: string;
   dispatch: (a: Action) => void;
   onClose: () => void;
+  // acionado pela escuta contínua (falou o nome do assistente em outra tela) — sempre um objeto novo, mesmo quando o texto repete
+  gatilho?: { texto: string; ts: number } | null;
 }) {
   const [msgs, setMsgs] = useState<Mensagem[]>([{ de: "ele", texto: "Pois não. Pode falar ou digitar — pergunta, pedido pra fazer algo, o que precisar." }]);
   const [txt, setTxt] = useState("");
@@ -73,6 +63,19 @@ export function Aristides({
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight });
   }, [msgs, pensando]);
+
+  useEffect(() => {
+    if (!gatilho) return;
+    if (gatilho.texto) {
+      void enviar(gatilho.texto);
+    } else {
+      setMsgs((m) => [...m, { de: "ele", texto: "Pois não?" }]);
+      falar("Pois não?");
+      ouvir();
+    }
+    // dispara de novo a cada gatilho novo (mesmo com o mesmo texto) — não a cada render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gatilho]);
 
   function falar(texto: string) {
     if (!model.config.vozAtiva || typeof window === "undefined" || !window.speechSynthesis) return;
@@ -137,12 +140,7 @@ export function Aristides({
       setMsgs((m) => [...m, { de: "ele", texto: "Sem internet. O microfone não funciona — anote manualmente." }]);
       return;
     }
-    type SRWindow = typeof window & {
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-    };
-    const w = window as SRWindow;
-    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    const SR = pegarConstrutorSR();
     if (!SR) {
       setMsgs((m) => [...m, { de: "ele", texto: "Este navegador não reconhece voz. Use o teclado." }]);
       return;
