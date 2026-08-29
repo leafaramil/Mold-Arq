@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
-import { fmt, hojeISO, uid } from "@/lib/format";
-import { resolverDespesa } from "@/lib/calc";
-import { retratoFinanceiro } from "@/lib/aristides";
+import { fmt } from "@/lib/format";
+import { indiceDados, retratoFinanceiro } from "@/lib/aristides";
+import { propostaParaAcao, type PropostaAcao } from "@/lib/aristides-tools";
 import type { Action } from "@/lib/action-types";
 import type { DataModel } from "@/lib/types";
 import { Btn, Card, Topo } from "./ui";
@@ -13,15 +13,6 @@ interface Mensagem {
   de: "eu" | "ele";
   texto: string;
 }
-
-type Comando =
-  | { acao: "gasto"; alvo: string; valor: number }
-  | { acao: "separar"; alvo: string; valor: number }
-  | { acao: "pagar"; alvo: string; valor: number }
-  | { acao: "zul"; alvo: string; valor: number }
-  | { acao: "erro"; motivo?: string };
-
-const ROTULO: Record<string, string> = { gasto: "Registrar gasto", separar: "Separar", pagar: "Pagar", zul: "Gasto no ZUL" };
 
 // Tipagem mínima do Web Speech API — não faz parte do lib.dom padrão do TS.
 interface SpeechRecognitionResultLike {
@@ -37,6 +28,15 @@ interface SpeechRecognitionLike extends EventTarget {
   onend: (() => void) | null;
 }
 
+let vozesCarregadas: SpeechSynthesisVoice[] = [];
+function carregarVozes() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  vozesCarregadas = window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    vozesCarregadas = window.speechSynthesis.getVoices();
+  };
+}
+
 export function Aristides({
   model,
   mes,
@@ -50,15 +50,16 @@ export function Aristides({
   dispatch: (a: Action) => void;
   onClose: () => void;
 }) {
-  const [msgs, setMsgs] = useState<Mensagem[]>([{ de: "ele", texto: `Pois não. Pergunte o que quiser sobre suas contas, ou diga um gasto que eu anoto.` }]);
+  const [msgs, setMsgs] = useState<Mensagem[]>([{ de: "ele", texto: "Pois não. Pode falar ou digitar — pergunta, pedido pra fazer algo, o que precisar." }]);
   const [txt, setTxt] = useState("");
   const [pensando, setPensando] = useState(false);
   const [ouvindo, setOuvindo] = useState(false);
   const [semRede, setSemRede] = useState(typeof navigator !== "undefined" ? !navigator.onLine : false);
-  const [confirmar, setConfirmar] = useState<{ cmd: Comando; frase: string } | null>(null);
+  const [confirmar, setConfirmar] = useState<PropostaAcao | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    carregarVozes();
     const on = () => setSemRede(false);
     const off = () => setSemRede(true);
     window.addEventListener("online", on);
@@ -75,9 +76,12 @@ export function Aristides({
 
   function falar(texto: string) {
     if (!model.config.vozAtiva || typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel(); // limpa fila travada — bug comum do Chrome/Android após inatividade
     const u = new SpeechSynthesisUtterance(texto);
     u.lang = "pt-BR";
     u.rate = 1.05;
+    const vozPt = vozesCarregadas.find((v) => v.lang?.toLowerCase().startsWith("pt"));
+    if (vozPt) u.voice = vozPt;
     window.speechSynthesis.speak(u);
   }
 
@@ -86,27 +90,42 @@ export function Aristides({
     if (custo > 0) dispatch({ type: "registrarConsumoIA", mes, custo });
   }
 
-  async function perguntar(pergunta: string) {
-    if (!pergunta.trim()) return;
+  async function enviar(mensagem: string) {
+    if (!mensagem.trim()) return;
     if (semRede) {
-      setMsgs((m) => [...m, { de: "eu", texto: pergunta }, { de: "ele", texto: "Sem internet agora. Anote manualmente pelo calendário." }]);
+      setMsgs((m) => [...m, { de: "eu", texto: mensagem }, { de: "ele", texto: "Sem internet agora. Anote manualmente pelo calendário." }]);
       return;
     }
-    setMsgs((m) => [...m, { de: "eu", texto: pergunta }]);
+    setMsgs((m) => [...m, { de: "eu", texto: mensagem }]);
     setTxt("");
     setPensando(true);
     try {
       const retrato = retratoFinanceiro(model, mes, new Date());
+      const indice = indiceDados(model, mes);
       const resp = await fetch("/api/aristides/perguntar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pergunta, retrato, nomeAssistente: nome }),
+        body: JSON.stringify({ mensagem, retrato, indice, nomeAssistente: nome, mesAtual: mes }),
       });
       const dados = await resp.json();
       if (!resp.ok) throw new Error(dados.erro || "falha");
-      setMsgs((m) => [...m, { de: "ele", texto: dados.texto }]);
-      falar(dados.texto);
       await registrarConsumo(dados.tokensEntrada ?? 0, dados.tokensSaida ?? 0);
+
+      if (dados.ferramenta) {
+        const proposta = propostaParaAcao(dados.ferramenta.nome, dados.ferramenta.input, model, mes);
+        if ("erro" in proposta) {
+          const texto = dados.texto || `Não consegui: ${proposta.erro}`;
+          setMsgs((m) => [...m, { de: "ele", texto }]);
+          falar(texto);
+        } else {
+          if (dados.texto) setMsgs((m) => [...m, { de: "ele", texto: dados.texto }]);
+          setConfirmar(proposta);
+          falar(`${proposta.descricao}. Confirma?`);
+        }
+      } else {
+        setMsgs((m) => [...m, { de: "ele", texto: dados.texto }]);
+        falar(dados.texto);
+      }
     } catch {
       setMsgs((m) => [...m, { de: "ele", texto: "Não consegui responder agora. Tente de novo." }]);
     }
@@ -133,32 +152,10 @@ export function Aristides({
     r.continuous = false;
     r.interimResults = false;
     setOuvindo(true);
-    r.onresult = async (ev) => {
+    r.onresult = (ev) => {
       const frase = ev.results[0][0].transcript;
       setOuvindo(false);
-      setMsgs((m) => [...m, { de: "eu", texto: frase }]);
-      setPensando(true);
-      try {
-        const despesasDoMes = model.despesas.map((d) => resolverDespesa(d, mes)).filter((d): d is NonNullable<typeof d> => d !== null);
-        const categorias = despesasDoMes.map((d) => `${d.id}: ${d.nome}`).join(", ");
-        const resp = await fetch("/api/aristides/comando", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ frase, categorias }),
-        });
-        const dados = await resp.json();
-        if (!resp.ok) throw new Error(dados.erro || "falha");
-        const cmd = dados.comando as Comando;
-        await registrarConsumo(dados.tokensEntrada ?? 0, dados.tokensSaida ?? 0);
-        if (cmd.acao === "erro") {
-          setMsgs((m) => [...m, { de: "ele", texto: `Não entendi: ${cmd.motivo || "repita, por favor"}` }]);
-        } else {
-          setConfirmar({ cmd, frase });
-        }
-      } catch {
-        setMsgs((m) => [...m, { de: "ele", texto: "Não consegui interpretar. Tente de novo." }]);
-      }
-      setPensando(false);
+      void enviar(frase);
     };
     r.onerror = () => {
       setOuvindo(false);
@@ -168,16 +165,18 @@ export function Aristides({
     r.start();
   }
 
-  function executar(cmd: Comando) {
-    if (cmd.acao === "zul") {
-      dispatch({ type: "gastarCaixinha", chave: cmd.alvo, mes, movId: uid(), valor: cmd.valor });
-    } else if (cmd.acao === "gasto") {
-      dispatch({ type: "addGasto", mes, itemId: cmd.alvo, valor: cmd.valor, data: hojeISO(new Date()), gastoId: uid() });
-    } else if (cmd.acao === "separar") {
-      dispatch({ type: "separar", mes, itemId: cmd.alvo, valor: cmd.valor });
-    } else if (cmd.acao === "pagar") {
-      dispatch({ type: "pagar", mes, itemId: cmd.alvo, valor: cmd.valor });
-    }
+  function confirmarProposta() {
+    if (!confirmar) return;
+    dispatch(confirmar.acao);
+    setMsgs((m) => [...m, { de: "ele", texto: "Anotado." }]);
+    falar("Anotado.");
+    setConfirmar(null);
+  }
+
+  function cancelarProposta() {
+    setMsgs((m) => [...m, { de: "ele", texto: "Cancelado." }]);
+    falar("Cancelado.");
+    setConfirmar(null);
   }
 
   const consumoMes = model.config.consumoIAMes[mes] || 0;
@@ -218,30 +217,12 @@ export function Aristides({
       {confirmar && (
         <Card style={{ borderColor: T.gold, background: T.goldSoft }}>
           <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.07em", color: T.inkSoft, fontWeight: 700, marginBottom: 6 }}>Confirma?</div>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 10 }}>
-            {ROTULO[confirmar.cmd.acao]} · {fmt(confirmar.cmd.acao === "erro" ? 0 : confirmar.cmd.valor)}
-            <div style={{ fontSize: 11, fontWeight: 400, color: T.inkSoft, marginTop: 2 }}>&quot;{confirmar.frase}&quot;</div>
-          </div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 10 }}>{confirmar.descricao}</div>
           <div style={{ display: "flex", gap: 7 }}>
-            <Btn
-              v="sage"
-              onClick={() => {
-                executar(confirmar.cmd);
-                setMsgs((m) => [...m, { de: "ele", texto: "Anotado." }]);
-                setConfirmar(null);
-              }}
-              style={{ padding: 10, fontSize: 12 }}
-            >
+            <Btn v="sage" onClick={confirmarProposta} style={{ padding: 10, fontSize: 12 }}>
               Confirmar
             </Btn>
-            <Btn
-              v="ghost"
-              onClick={() => {
-                setConfirmar(null);
-                setMsgs((m) => [...m, { de: "ele", texto: "Cancelado." }]);
-              }}
-              style={{ padding: 10, fontSize: 12 }}
-            >
+            <Btn v="ghost" onClick={cancelarProposta} style={{ padding: 10, fontSize: 12 }}>
               Cancelar
             </Btn>
           </div>
@@ -252,9 +233,9 @@ export function Aristides({
         <input
           value={txt}
           onChange={(e) => setTxt(e.target.value)}
-          placeholder="Pergunte ou digite um gasto…"
+          placeholder="Pergunte ou peça algo…"
           onKeyDown={(e) => {
-            if (e.key === "Enter") void perguntar(txt);
+            if (e.key === "Enter") void enviar(txt);
           }}
           style={{ flex: 1, padding: 12, borderRadius: 12, border: `1px solid ${T.line}`, fontSize: 13, fontFamily: "inherit" }}
         />
@@ -279,7 +260,7 @@ export function Aristides({
       </div>
 
       <div style={{ fontSize: 10, color: T.inkSoft, textAlign: "center", marginTop: 8 }}>
-        Toque no microfone e fale: &quot;gastei 87 no mercado&quot; ou &quot;quanto sobra se eu pegar uma parcela de 1200?&quot;
+        Fale ou digite: &quot;paga a luz 712&quot;, &quot;separa mil pro mercado&quot;, &quot;quanto sobra se eu pegar uma parcela de 1200?&quot;
       </div>
     </div>
   );
