@@ -7,6 +7,7 @@ function despesa(partial: Partial<Despesa> & Pick<Despesa, "id" | "nome" | "icon
     dia: null,
     q: "Q1",
     provisaoAnual: null,
+    parcelamento: null,
     overrides: {},
     apenasMes: null,
     ...partial,

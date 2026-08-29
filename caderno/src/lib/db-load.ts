@@ -10,6 +10,7 @@ import type {
   GastoParcial,
   ItemOverride,
   Parcela,
+  Parcelamento,
   PoteHist,
   Quinzena,
   Receita,
@@ -27,6 +28,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
   const [
     despesasRows,
     despesaOverridesRows,
+    despesaParcelamentoRows,
     receitasRows,
     receitaOverridesRows,
     cartoesRows,
@@ -42,6 +44,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
   ] = await Promise.all([
     sql`SELECT * FROM despesas ORDER BY criado_em`,
     sql`SELECT * FROM despesa_overrides`,
+    sql`SELECT * FROM despesa_parcelamento`,
     sql`SELECT * FROM receitas ORDER BY criado_em`,
     sql`SELECT * FROM receita_overrides`,
     sql`SELECT * FROM cartoes`,
@@ -64,6 +67,16 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     despesaOverrides.set(id, map);
   }
 
+  const despesaParcelamento = new Map<string, Parcelamento>();
+  for (const row of despesaParcelamentoRows as Row[]) {
+    despesaParcelamento.set(row.despesa_id as string, {
+      valor: num(row.valor),
+      atual: num(row.atual),
+      total: num(row.total),
+      base: row.base as string,
+    });
+  }
+
   const receitaOverrides = new Map<string, Record<string, ItemOverride>>();
   for (const row of receitaOverridesRows as Row[]) {
     const id = row.receita_id as string;
@@ -80,6 +93,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     dia: numOrNull(r.dia),
     q: (r.q as Quinzena) ?? "Q1",
     provisaoAnual: numOrNull(r.provisao_anual),
+    parcelamento: despesaParcelamento.get(r.id as string) ?? null,
     overrides: despesaOverrides.get(r.id as string) ?? {},
     apenasMes: (r.apenas_mes as string) ?? null,
   }));

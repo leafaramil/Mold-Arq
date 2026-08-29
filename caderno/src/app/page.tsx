@@ -5,6 +5,7 @@ import { CadernoProvider, useCaderno } from "@/lib/store";
 import { calcularAvisos, calcularLivre, resolverCartao, resolverDespesa } from "@/lib/calc";
 import { T } from "@/lib/theme";
 import { Login } from "@/components/Login";
+import { OfertaBiometria, TelaDesbloqueio } from "@/components/Biometria";
 import { Centro } from "@/components/ui";
 import { Home, type Tela } from "@/components/Home";
 import { Calendario } from "@/components/Calendario";
@@ -15,12 +16,30 @@ import { Aristides } from "@/components/Aristides";
 const ONBOARDING_CHAVE = "onboarding";
 
 function AppShell() {
-  const { model, carregando, offline, mes, setMes, nome, entrar, sair, dispatch, toast, mostrarToast } = useCaderno();
+  const {
+    model,
+    carregando,
+    offline,
+    mes,
+    setMes,
+    nome,
+    entrar,
+    sair,
+    dispatch,
+    toast,
+    mostrarToast,
+    travado,
+    tentarDesbloquear,
+    ofertaBiometria,
+    ativarBiometria,
+    dispensarOfertaBiometria,
+  } = useCaderno();
   const [tela, setTela] = useState<Tela>("home");
   const hoje = useMemo(() => new Date(), []);
 
   if (carregando && !model) return <Centro>Carregando…</Centro>;
   if (!nome) return <Login onOk={entrar} />;
+  if (travado) return <TelaDesbloqueio nome={nome} onTentar={tentarDesbloquear} />;
   if (!model) return <Centro>Sem conexão e sem dados salvos neste aparelho ainda. Conecte à internet uma vez.</Centro>;
 
   const livre = calcularLivre(model, mes, hoje);
@@ -41,6 +60,7 @@ function AppShell() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", justifyContent: "center", padding: "20px 12px" }}>
       <div style={{ width: 400, maxWidth: "100%" }}>
+        {ofertaBiometria && <OfertaBiometria onAtivar={ativarBiometria} onDispensar={dispensarOfertaBiometria} />}
         {offline && (
           <div style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", background: T.brick, color: "#fff", padding: "7px 16px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, zIndex: 500 }}>
             Sem internet — gravando neste aparelho

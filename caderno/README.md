@@ -55,6 +55,14 @@ do cliente — todas as chamadas passam por `/api/aristides/*`.
   tenta nenhuma interpretação alternativa.
 - O consumo de tokens é convertido em reais e mostrado em Ajustes (mês
   atual, previsão e acumulado).
+- Aristides é um agente de verdade: qualquer pedido (falado ou digitado)
+  passa pela mesma conversa, e ele decide se é só uma pergunta ou se deve
+  propor uma ação usando *tool use* da API da Anthropic — o app expõe quase
+  todas as mutações do modelo (`src/lib/aristides-tools.ts`) como
+  ferramentas. Ele **nunca** executa nada sozinho: sempre mostra e fala o
+  que entendeu, esperando confirmação antes de gravar qualquer coisa
+  (seção 6.1). Ficam de fora só duas ações que não fazem sentido como
+  pedido em conversa: dispensar aviso e o registro interno de consumo de IA.
 
 ## Rodando localmente
 

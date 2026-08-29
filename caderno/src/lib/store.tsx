@@ -4,11 +4,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Action } from "./action-types";
 import { applyAction } from "./optimistic";
 import { mesRefDe } from "./calc";
+import { desbloquearComBiometria, registrarBiometria, suportaBiometria } from "./biometria";
 import type { DataModel } from "./types";
 
 const CACHE_KEY = "caderno-modelo";
 const FILA_KEY = "caderno-fila";
 const NOME_KEY = "caderno-nome";
+const BIOMETRIA_KEY = "caderno-biometria";
+
+interface BiometriaSalva {
+  nome: string;
+  credentialId: string;
+}
 
 function lerCache(): DataModel | null {
   try {
@@ -44,6 +51,15 @@ function gravarFila(fila: Action[]) {
   }
 }
 
+function lerBiometria(): BiometriaSalva | null {
+  try {
+    const raw = localStorage.getItem(BIOMETRIA_KEY);
+    return raw ? (JSON.parse(raw) as BiometriaSalva) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface CadernoContextValue {
   model: DataModel | null;
   carregando: boolean;
@@ -57,6 +73,12 @@ interface CadernoContextValue {
   dispatch: (action: Action) => void;
   toast: string | null;
   mostrarToast: (msg: string) => void;
+  // trava biométrica local (seção 11) — não é autenticação de servidor
+  travado: boolean;
+  tentarDesbloquear: () => Promise<boolean>;
+  ofertaBiometria: boolean;
+  ativarBiometria: () => Promise<boolean>;
+  dispensarOfertaBiometria: () => void;
 }
 
 const CadernoContext = createContext<CadernoContextValue | null>(null);
@@ -69,6 +91,8 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
   const [mes, setMes] = useState(() => mesRefDe(new Date()));
   const [nome, setNome] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [travado, setTravado] = useState(false);
+  const [ofertaBiometria, setOfertaBiometria] = useState(false);
   const filaRef = useRef<Action[]>([]);
   const flushando = useRef(false);
 
@@ -124,11 +148,16 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
   }, [buscarEstado]);
 
   useEffect(() => {
+    let nomeSalvo: string | null = null;
     try {
-      setNome(localStorage.getItem(NOME_KEY));
+      nomeSalvo = localStorage.getItem(NOME_KEY);
+      setNome(nomeSalvo);
     } catch {
       // ignora
     }
+    const biometria = lerBiometria();
+    if (nomeSalvo && biometria && biometria.nome === nomeSalvo) setTravado(true);
+
     filaRef.current = lerFila();
     const cache = lerCache();
     if (cache) setModel(cache);
@@ -176,20 +205,70 @@ export function CadernoProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignora
     }
+    void suportaBiometria().then((suporta) => {
+      if (suporta && !lerBiometria()) setOfertaBiometria(true);
+    });
   }, []);
 
   const sair = useCallback(() => {
     setNome(null);
+    setTravado(false);
+    setOfertaBiometria(false);
     try {
       localStorage.removeItem(NOME_KEY);
+      localStorage.removeItem(BIOMETRIA_KEY);
     } catch {
       // ignora
     }
   }, []);
 
+  const tentarDesbloquear = useCallback(async (): Promise<boolean> => {
+    const biometria = lerBiometria();
+    if (!biometria) {
+      setTravado(false);
+      return true;
+    }
+    const ok = await desbloquearComBiometria(biometria.credentialId);
+    if (ok) setTravado(false);
+    return ok;
+  }, []);
+
+  const ativarBiometria = useCallback(async (): Promise<boolean> => {
+    if (!nome) return false;
+    const credentialId = await registrarBiometria(nome);
+    if (!credentialId) return false;
+    try {
+      localStorage.setItem(BIOMETRIA_KEY, JSON.stringify({ nome, credentialId }));
+    } catch {
+      return false;
+    }
+    setOfertaBiometria(false);
+    return true;
+  }, [nome]);
+
+  const dispensarOfertaBiometria = useCallback(() => setOfertaBiometria(false), []);
+
   const value = useMemo(
-    () => ({ model, carregando, offline, sincronizando, mes, setMes, nome, entrar, sair, dispatch, toast, mostrarToast }),
-    [model, carregando, offline, sincronizando, mes, nome, entrar, sair, dispatch, toast, mostrarToast],
+    () => ({
+      model,
+      carregando,
+      offline,
+      sincronizando,
+      mes,
+      setMes,
+      nome,
+      entrar,
+      sair,
+      dispatch,
+      toast,
+      mostrarToast,
+      travado,
+      tentarDesbloquear,
+      ofertaBiometria,
+      ativarBiometria,
+      dispensarOfertaBiometria,
+    }),
+    [model, carregando, offline, sincronizando, mes, nome, entrar, sair, dispatch, toast, mostrarToast, travado, tentarDesbloquear, ofertaBiometria, ativarBiometria, dispensarOfertaBiometria],
   );
 
   return <CadernoContext.Provider value={value}>{children}</CadernoContext.Provider>;

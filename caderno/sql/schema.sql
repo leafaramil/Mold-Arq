@@ -30,6 +30,18 @@ CREATE TABLE IF NOT EXISTS despesa_overrides (
   PRIMARY KEY (despesa_id, mes)
 );
 
+-- Parcelamento avulso de uma despesa que NÃO é fatura de cartão (financiamento,
+-- boleto em N vezes...). Mesma ideia de `parcelas`, só que ligado direto à
+-- despesa em vez de a um cartão — a despesa só aparece nos meses em que a
+-- parcela está ativa (ver `parcelaAtivaNoMes` em src/lib/calc.ts).
+CREATE TABLE IF NOT EXISTS despesa_parcelamento (
+  despesa_id TEXT PRIMARY KEY REFERENCES despesas(id) ON DELETE CASCADE,
+  valor NUMERIC NOT NULL,
+  atual INTEGER NOT NULL,
+  total INTEGER NOT NULL,
+  base TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS receitas (
   id TEXT PRIMARY KEY,
   nome TEXT NOT NULL,

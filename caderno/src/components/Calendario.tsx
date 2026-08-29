@@ -448,7 +448,7 @@ export function Calendario({
             const media = mediaRealDe(d.id, d.overrides, model.estados, mes);
             const v = st === "pago" ? e.pago! : st === "separado" ? saldoCx : previsto(d.valor, media);
             const av = avisoDe(d.id);
-            const meta =
+            const metaBase =
               st === "pago"
                 ? "pago"
                 : st === "separado"
@@ -457,11 +457,16 @@ export function Calendario({
                     : `separado · ${fmt(e.separado)}`
                   : av
                     ? textoAviso(av.dias)
-                    : media
-                      ? `média real ${fmt(media.media)}`
-                      : d.dia
+                    : d.parcelaInfo
+                      ? d.dia
                         ? `dia ${d.dia}`
-                        : "sem data";
+                        : "sem data"
+                      : media
+                        ? `média real ${fmt(media.media)}`
+                        : d.dia
+                          ? `dia ${d.dia}`
+                          : "sem data";
+            const meta = d.parcelaInfo ? `${d.parcelaInfo.atual}/${d.parcelaInfo.total} · ${metaBase}` : metaBase;
             const btns: Btn2[] =
               st === "pago"
                 ? [{ t: "✓ pago", on: () => dispatch({ type: "desPagar", mes, itemId: d.id }), ativo: true }]

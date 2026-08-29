@@ -9,6 +9,10 @@ export type NovoItemDespesa = {
   icone: string;
   valor: number;
   dia: number | null;
+  // Parcelamento avulso (financiamento, boleto em N vezes...) — não é fatura
+  // de cartão. Quando presente, a despesa só aparece nos meses em que a
+  // parcela está ativa (mesma regra de uma parcela de cartão, seção 4.8).
+  parcelamento?: { valor: number; atual: number; total: number; base: string };
 };
 
 export type NovoItemReceita = {
@@ -40,6 +44,11 @@ export type Action =
   | { type: "editarValor"; tipo: "despesa" | "receita"; itemId: string; mes: string; valor: number; soNesseMes: boolean }
   | { type: "removerItem"; tipo: "despesa" | "receita"; itemId: string; mes: string; soNesseMes: boolean }
   | { type: "addDespesa"; itemId: string; mes: string; apenasEsseMes: boolean; dados: NovoItemDespesa }
+  | {
+      type: "definirParcelamento";
+      despesaId: string;
+      parcelamento: { valor: number; atual: number; total: number; base: string } | null;
+    }
   | { type: "addReceita"; itemId: string; mes: string; apenasEsseMes: boolean; dados: NovoItemReceita }
   | { type: "toggleReceita"; receitaId: string; campo: "ativa" | "reserva" }
   | { type: "updateConfig"; campo: keyof Config; valor: string | number | boolean }
