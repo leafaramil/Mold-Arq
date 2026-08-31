@@ -372,9 +372,6 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
 
   const gastoTotalDe = (id: string) => gastoTotal(estadosDoMes[id]?.gastos ?? []);
 
-  const impostoRafaelValor = despesas.find((d) => d.id === "imposto_rafael")?.valor ?? 0;
-  const contadorValor = despesas.find((d) => d.id === "contador")?.valor ?? 0;
-
   const recebido = round2(receitas.reduce((s, r) => s + (estadosDoMes[r.id]?.recebido ?? 0), 0));
 
   const pagoBruto = round2(despesas.reduce((s, d) => s + (estadosDoMes[d.id]?.pago ?? 0), 0));
@@ -407,15 +404,11 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     }, 0),
   );
 
+  // O dízimo NÃO é descontado do livre sozinho ao confirmar o recebimento —
+  // só quando a devolução é de fato registrada (botão "Devolver"). A
+  // responsabilidade de separar e devolver é do usuário; o app não presume
+  // isso por ele.
   const devolvido = round2(receitas.reduce((s, r) => s + (estadosDoMes[r.id]?.devolvido ?? 0), 0));
-
-  const dizimoAberto = round2(
-    receitas.reduce((s, r) => {
-      const e = estadosDoMes[r.id] ?? ESTADO_VAZIO;
-      if (e.devolvido != null) return s;
-      return s + dizimoDe(r, e, impostoRafaelValor, contadorValor);
-    }, 0),
-  );
 
   const gastoZulMes = gastoZulNoMes(model.caixinhas, mesRef);
 
@@ -442,7 +435,6 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
       gastoDeCaixinhas -
       estouro -
       devolvido -
-      dizimoAberto -
       gastoZulMes -
       cartoesLancados,
   );
@@ -456,7 +448,6 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     separado,
     estouro,
     devolvido,
-    dizimoAberto,
     gastoZulMes,
     cartoesLancados,
   };

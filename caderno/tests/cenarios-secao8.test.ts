@@ -26,35 +26,38 @@ describe("Cenário 1 — mês zerado", () => {
 });
 
 describe("Cenário 2 — receita confirmada", () => {
-  it("confirma Space dia 30 (R$4.500) → dízimo R$399,50; livre = R$4.100,50", () => {
+  // O dízimo (seção 4.5) não desconta mais o livre sozinho ao confirmar o
+  // recebimento — só quando a devolução é de fato registrada (ver
+  // "dízimo — devolução manual" mais abaixo). Mudança pedida explicitamente
+  // pelo usuário: a responsabilidade de separar e devolver é dele, não do app.
+  it("confirma Space dia 30 (R$4.500) → livre = R$4.500 (dízimo não desconta sozinho)", () => {
     const model = modeloInicial();
     setEstado(model, MES, "space30", { recebido: 4500 });
     const r = calcularLivre(model, MES, HOJE);
-    expect(r.dizimoAberto).toBe(399.5);
-    expect(r.livre).toBe(4100.5);
+    expect(r.livre).toBe(4500);
   });
 });
 
 describe("Cenário 3 — caixinha do mercado", () => {
-  it("separa R$1.000 → livre R$3.100,50; separado R$1.000. Gasta R$350 pelo ＋ → livre não muda", () => {
+  it("separa R$1.000 → livre R$3.500; separado R$1.000. Gasta R$350 pelo ＋ → livre não muda", () => {
     const model = modeloInicial();
     setEstado(model, MES, "space30", { recebido: 4500 });
     setEstado(model, MES, "mercado_q1", { separado: 1000 });
 
     const antes = calcularLivre(model, MES, HOJE);
-    expect(antes.livre).toBe(3100.5);
+    expect(antes.livre).toBe(3500);
     expect(antes.separado).toBe(1000);
 
     setEstado(model, MES, "mercado_q1", { separado: 1000, gastos: [{ id: "g1", valor: 350, data: "2026-09-05" }] });
     const depois = calcularLivre(model, MES, HOJE);
-    expect(depois.livre).toBe(3100.5); // livre não muda
+    expect(depois.livre).toBe(3500); // livre não muda
     expect(depois.separado).toBe(650); // separado = R$650
     expect(depois.pago).toBe(350); // pago = R$350
   });
 });
 
 describe("Cenário 4 — estouro", () => {
-  it("gasta mais R$800 (total R$1.150) → estouro de R$150 → livre cai para R$2.950,50", () => {
+  it("gasta mais R$800 (total R$1.150) → estouro de R$150 → livre cai para R$3.350", () => {
     const model = modeloInicial();
     setEstado(model, MES, "space30", { recebido: 4500 });
     setEstado(model, MES, "mercado_q1", {
@@ -66,7 +69,7 @@ describe("Cenário 4 — estouro", () => {
     });
     const r = calcularLivre(model, MES, HOJE);
     expect(r.estouro).toBe(150);
-    expect(r.livre).toBe(2950.5);
+    expect(r.livre).toBe(3350);
     // a quinzena seguinte não é afetada: outubro parte do livre de setembro, sem estouro adicional
     const outubro = calcularLivre(model, "2026-10", HOJE);
     expect(outubro.estouro).toBe(0);

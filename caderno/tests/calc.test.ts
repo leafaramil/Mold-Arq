@@ -128,6 +128,28 @@ describe("dizimoDe", () => {
   });
 });
 
+// ---------- dízimo — devolução manual (não é automática, seção 4.5 alterada a pedido do usuário) ----------
+
+describe("dízimo no livre — só desconta quando devolvido", () => {
+  it("confirmar o recebimento sozinho não desconta o dízimo do livre", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "space30", { recebido: 4500 });
+    expect(calcularLivre(model, MES, HOJE).livre).toBe(4500);
+  });
+
+  it("registrar a devolução desconta exatamente o valor devolvido do livre", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "space30", { recebido: 4500, devolvido: 399.5 });
+    expect(calcularLivre(model, MES, HOJE).livre).toBe(4100.5);
+  });
+
+  it("desfazer a devolução (devolvido: null) devolve o valor pro livre", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "space30", { recebido: 4500, devolvido: null });
+    expect(calcularLivre(model, MES, HOJE).livre).toBe(4500);
+  });
+});
+
 // ---------- mediaRealDe ----------
 
 describe("mediaRealDe", () => {
@@ -396,12 +418,16 @@ describe("seção 8 — cenários obrigatórios", () => {
     expect(r.livre).toBe(0);
   });
 
-  it("cenário 2: receita confirmada (Space 4500) → dízimo 399,50, livre 4100,50", () => {
+  // O dízimo (seção 4.5) não desconta mais o livre sozinho ao confirmar o
+  // recebimento — só quando a devolução é de fato registrada (ver describe
+  // "dízimo — devolução manual" mais abaixo). Mudança pedida explicitamente
+  // pelo usuário: a responsabilidade de separar e devolver é dele, não do
+  // app presumir por ele.
+  it("cenário 2: receita confirmada (Space 4500) → livre 4500 (dízimo não desconta sozinho)", () => {
     const model = modeloInicial();
     setEstado(model, MES, "space30", { recebido: 4500 });
     const r = calcularLivre(model, MES, HOJE);
-    expect(r.dizimoAberto).toBe(399.5);
-    expect(r.livre).toBe(4100.5);
+    expect(r.livre).toBe(4500);
   });
 
   it("cenário 3: caixinha do mercado — separar e gastar parcial não muda o livre", () => {
@@ -409,7 +435,7 @@ describe("seção 8 — cenários obrigatórios", () => {
     setEstado(model, MES, "space30", { recebido: 4500 });
     setEstado(model, MES, "mercado_q1", { separado: 1000 });
     let r = calcularLivre(model, MES, HOJE);
-    expect(r.livre).toBe(3100.5);
+    expect(r.livre).toBe(3500);
     expect(r.separado).toBe(1000);
 
     setEstado(model, MES, "mercado_q1", {
@@ -417,7 +443,7 @@ describe("seção 8 — cenários obrigatórios", () => {
       gastos: [{ id: "g1", valor: 350, data: "2026-09-05" }],
     });
     r = calcularLivre(model, MES, HOJE);
-    expect(r.livre).toBe(3100.5); // não muda
+    expect(r.livre).toBe(3500); // não muda
     expect(r.separado).toBe(650); // ainda reservado
     expect(r.pago).toBe(350); // já saiu da caixinha
   });
@@ -434,7 +460,7 @@ describe("seção 8 — cenários obrigatórios", () => {
     });
     const r = calcularLivre(model, MES, HOJE);
     expect(r.estouro).toBe(150);
-    expect(r.livre).toBe(2950.5);
+    expect(r.livre).toBe(3350);
   });
 
   it("cenário 5: ZUL — recarga desconta do livre, gasto não; saldo atravessa o mês", () => {
@@ -471,12 +497,6 @@ describe("seção 8 — cenários obrigatórios", () => {
     expect(cartaoRafa.valor).toBe(1465.26);
     expect(cartaoRafa.q).toBe("Q1"); // vence dia 10
     expect(antes.cartoesLancados).toBe(0); // em aberto, não desconta
-  });
-
-  it("cenário 7 (repetido via calcularLivre): dízimo em aberto só após confirmação", () => {
-    const model = modeloInicial();
-    const r = calcularLivre(model, MES, HOJE);
-    expect(r.dizimoAberto).toBe(0);
   });
 
   it("cenário 8 (repetido via calcularLivre): escopo do override não vaza pro mês seguinte", () => {
@@ -520,9 +540,9 @@ describe("saldo entre meses", () => {
 // ---------- livre: todos os componentes juntos ----------
 
 describe("calcularLivre — todos os componentes somando corretamente", () => {
-  it("recebido, pago, separado, estouro, devolvido, dízimo, ZUL e cartões", () => {
+  it("recebido, pago, separado, estouro, devolvido, ZUL e cartões", () => {
     const model = modeloInicial();
-    setEstado(model, MES, "space30", { recebido: 4500 }); // dízimo 399,50 em aberto
+    setEstado(model, MES, "space30", { recebido: 4500 }); // dízimo não desconta sozinho — só quando devolvido
     setEstado(model, MES, "energia", { pago: 700 }); // pago
     setEstado(model, MES, "iptu", { separado: 194.43 }); // separado, sem gasto
     setEstado(model, MES, "mercado_q1", {
@@ -539,12 +559,11 @@ describe("calcularLivre — todos os componentes somando corretamente", () => {
     expect(r.pago).toBe(700 + 1000); // energia paga + mercado todo consumido da caixinha (min(gasto,separado))
     expect(r.separado).toBe(194.43 + 1465.26); // iptu (sem gasto) + cartão; mercado zerou (gastou tudo e mais)
     expect(r.estouro).toBe(200);
-    expect(r.dizimoAberto).toBe(399.5);
     expect(r.gastoZulMes).toBe(34.5);
     expect(r.cartoesLancados).toBe(1465.26);
 
     const esperado = round2(
-      0 + 4500 - 700 - (194.43 + 1465.26) - 1000 - 200 - 0 - 399.5 - 34.5 - 1465.26,
+      0 + 4500 - 700 - (194.43 + 1465.26) - 1000 - 200 - 0 - 34.5 - 1465.26,
     );
     expect(r.livre).toBe(esperado);
   });
