@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { T, fontSerif } from "@/lib/theme";
-import { fmt, hojeISO, uid } from "@/lib/format";
+import { fmt, hojeISO, parseValorBR, uid } from "@/lib/format";
 import {
   FAIXAS_TAG,
   FAIXAS_ZONA,
@@ -93,7 +93,8 @@ function Linha({
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
         {ed ? (
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             autoFocus
             value={v}
             onChange={(e) => setV(e.target.value)}
@@ -212,7 +213,7 @@ export function Calendario({
       sub: "Quanto vai guardar?",
       valorInicial: valorSugerido,
       onOk: (v) => {
-        dispatch({ type: "separar", mes, itemId: id, valor: parseFloat(v.replace(",", ".")) || 0 });
+        dispatch({ type: "separar", mes, itemId: id, valor: parseValorBR(v) });
         fechar();
         mostrarToast("Separado");
       },
@@ -231,7 +232,7 @@ export function Calendario({
       sub: "Valor real",
       valorInicial: sugerido,
       onOk: (v) => {
-        const val = parseFloat(v.replace(",", ".")) || 0;
+        const val = parseValorBR(v);
         dispatch({ type: "pagar", mes, itemId: id, valor: val });
         fechar();
         if (e.separado != null) {
@@ -251,7 +252,7 @@ export function Calendario({
       sub: `Caixinha tem ${fmt(restante)}`,
       valorInicial: "",
       onOk: (v) => {
-        const val = parseFloat(v.replace(",", ".")) || 0;
+        const val = parseValorBR(v);
         fechar();
         if (val <= 0) return;
         dispatch({ type: "addGasto", mes, itemId: id, valor: val, data: hojeISO(new Date()), gastoId: uid() });
@@ -281,7 +282,7 @@ export function Calendario({
       sub: "Quanto caiu?",
       valorInicial: r.valor,
       onOk: (v) => {
-        const val = parseFloat(v.replace(",", ".")) || 0;
+        const val = parseValorBR(v);
         dispatch({ type: "receber", mes, receitaId: r.id, valor: val, reservaPct: r.reserva ? model.config.reservaPct : null });
         fechar();
         mostrarToast("Recebimento confirmado");
@@ -303,7 +304,7 @@ export function Calendario({
       sub: `Sobre ${r.nome}`,
       valorInicial: sugerido,
       onOk: (v) => {
-        dispatch({ type: "devolver", mes, receitaId: r.id, valor: parseFloat(v.replace(",", ".")) || 0 });
+        dispatch({ type: "devolver", mes, receitaId: r.id, valor: parseValorBR(v) });
         fechar();
         mostrarToast("Devolvido");
       },
@@ -334,7 +335,7 @@ export function Calendario({
       sub: `Saldo: ${fmt(saldo)}`,
       valorInicial: "",
       onOk: (v) => {
-        const val = parseFloat(v.replace(",", ".")) || 0;
+        const val = parseValorBR(v);
         fechar();
         if (val <= 0) return;
         dispatch({ type: "gastarCaixinha", chave, mes, movId: uid(), valor: val });
@@ -344,7 +345,7 @@ export function Calendario({
   }
 
   function editarValorComEscopo(tipo: "despesa" | "receita", id: string, nomeValor: string) {
-    const valor = parseFloat(nomeValor.replace(",", ".")) || 0;
+    const valor = parseValorBR(nomeValor);
     setModal({
       tipo: "escopo",
       titulo: "Aplicar em qual período?",
@@ -357,7 +358,7 @@ export function Calendario({
   }
 
   function editarEstadoDireto(id: string, campo: "pago" | "separado" | "recebido" | "devolvido", v: string) {
-    dispatch({ type: "editarEstado", mes, itemId: id, campo, valor: parseFloat(v.replace(",", ".")) || 0 });
+    dispatch({ type: "editarEstado", mes, itemId: id, campo, valor: parseValorBR(v) });
   }
 
   const bloco = (label: string, sub: string, qz: Quinzena) => {

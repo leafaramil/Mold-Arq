@@ -54,7 +54,8 @@ export function ModalValor({ titulo, sub, valorInicial, onOk, onNo }: ModalValor
         <div style={{ fontFamily: fontSerif, fontSize: 17, fontWeight: 600, color: T.ink }}>{titulo}</div>
         {sub && <div style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14 }}>{sub}</div>}
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
           autoFocus
           value={v}
           onChange={(e) => setV(e.target.value)}
