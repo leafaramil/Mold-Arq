@@ -75,6 +75,16 @@ CREATE TABLE IF NOT EXISTS cartoes (
   vencimento INTEGER
 );
 
+-- Valor da fatura digitado direto num mês (uso do dia a dia — sem lançar
+-- parcela por parcela). Quando existe uma linha aqui pro mês, ela substitui
+-- o total calculado a partir de `parcelas` só naquele mês.
+CREATE TABLE IF NOT EXISTS cartao_overrides (
+  cartao_id TEXT NOT NULL REFERENCES cartoes(id) ON DELETE CASCADE,
+  mes TEXT NOT NULL,
+  valor NUMERIC NOT NULL,
+  PRIMARY KEY (cartao_id, mes)
+);
+
 CREATE TABLE IF NOT EXISTS parcelas (
   id TEXT PRIMARY KEY,
   descricao TEXT NOT NULL,

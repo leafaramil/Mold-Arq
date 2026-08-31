@@ -147,7 +147,7 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
       const valorInicial = action.dados.parcelamento ? action.dados.parcelamento.valor : action.dados.valor;
       const apenasMes = action.dados.parcelamento ? null : action.apenasEsseMes ? action.mes : null;
       await sql`INSERT INTO despesas (id, nome, icone, valor, dia, q, apenas_mes)
-                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${valorInicial}, ${action.dados.dia}, 'Q1', ${apenasMes})
+                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${valorInicial}, ${action.dados.dia}, ${action.dados.q}, ${apenasMes})
                 ON CONFLICT (id) DO NOTHING`;
       if (action.dados.parcelamento) {
         const p = action.dados.parcelamento;
@@ -205,6 +205,11 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
       } else {
         await sql`UPDATE cartoes SET vencimento = ${action.valor} WHERE id = ${action.cartaoId}`;
       }
+      return;
+    case "editarValorCartao":
+      await sql`INSERT INTO cartao_overrides (cartao_id, mes, valor)
+                VALUES (${action.cartaoId}, ${action.mes}, ${action.valor})
+                ON CONFLICT (cartao_id, mes) DO UPDATE SET valor = EXCLUDED.valor`;
       return;
     case "addParcela":
       await sql`INSERT INTO parcelas (id, descricao, parcela, atual, total, base, cartao_id)

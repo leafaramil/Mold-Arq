@@ -9,6 +9,9 @@ export type NovoItemDespesa = {
   icone: string;
   valor: number;
   dia: number | null;
+  // Quinzena — só importa quando `dia` é null (sem isso, uma despesa sem
+  // data cai sempre na 1ª quinzena, mesmo se cadastrada pelo "+" da 2ª).
+  q: "Q1" | "Q2";
   // Parcelamento avulso (financiamento, boleto em N vezes...) — não é fatura
   // de cartão. Quando presente, a despesa só aparece nos meses em que a
   // parcela está ativa (mesma regra de uma parcela de cartão, seção 4.8).
@@ -53,6 +56,7 @@ export type Action =
   | { type: "toggleReceita"; receitaId: string; campo: "ativa" | "reserva" }
   | { type: "updateConfig"; campo: keyof Config; valor: string | number | boolean }
   | { type: "updateCartao"; cartaoId: string; campo: "fechamento" | "vencimento"; valor: number | null }
+  | { type: "editarValorCartao"; cartaoId: string; mes: string; valor: number }
   | {
       type: "addParcela";
       parcelaId: string;

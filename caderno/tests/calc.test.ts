@@ -221,6 +221,14 @@ describe("resolvedores", () => {
     expect(resolverDespesa(agua, "2026-09")!.valor).toBe(350);
     expect(resolverDespesa(agua, "2026-10")!.valor).toBe(290.4);
   });
+
+  it("cartão: valor digitado direto no mês (override) substitui a soma das parcelas, só naquele mês", () => {
+    const model = modeloInicial();
+    const rafa = model.cartoes.find((c) => c.id === "cartao_rafa")!;
+    rafa.overrides["2026-09"] = 812.5;
+    expect(resolverCartao(rafa, model.parcelas, "2026-09").valor).toBe(812.5);
+    expect(resolverCartao(rafa, model.parcelas, "2026-10").valor).toBe(faturaDoCartao(model.parcelas, "cartao_rafa", "2026-10"));
+  });
 });
 
 // ---------- parcelamento avulso numa despesa (não é fatura de cartão) ----------

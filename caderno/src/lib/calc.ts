@@ -129,9 +129,15 @@ export function resolverReceita(r: Receita, mesRef: string): ResolvedReceita | n
   return { ...r, valor };
 }
 
-/** Resolve um cartão para um mês: calcula a fatura a partir dos parcelamentos. */
+/**
+ * Resolve um cartão para um mês: usa o valor digitado direto naquele mês
+ * (override — uso do dia a dia, sem lançar parcela por parcela), ou calcula
+ * a fatura a partir dos parcelamentos cadastrados quando não há override.
+ */
 export function resolverCartao(c: Cartao, parcelas: Parcela[], mesRef: string): ResolvedCartao {
-  return { ...c, valor: faturaDoCartao(parcelas, c.id, mesRef), q: quinzenaDoDia(c.vencimento, "Q1") };
+  const override = c.overrides?.[mesRef];
+  const valor = override !== undefined ? override : faturaDoCartao(parcelas, c.id, mesRef);
+  return { ...c, valor, q: quinzenaDoDia(c.vencimento, "Q1") };
 }
 
 // ---------- parcelamentos (de cartão ou avulsos numa despesa) ----------
