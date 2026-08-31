@@ -389,7 +389,7 @@ export function propostaParaAcao(nomeFerramenta: string, input: Input, model: Da
       const parcelasTotal = input.parcelasTotal != null ? Number(input.parcelasTotal) : null;
       const parcelamento = parcelasTotal ? { valor: num(input, "valor"), atual: input.parcelaAtual != null ? Number(input.parcelaAtual) : 1, total: parcelasTotal, base: mes } : undefined;
       return {
-        acao: { type: "addDespesa", itemId: uid(), mes, apenasEsseMes: false, dados: { nome: str(input, "nome"), icone: "📌", valor: num(input, "valor"), dia: input.dia != null ? Number(input.dia) : null, parcelamento } },
+        acao: { type: "addDespesa", itemId: uid(), mes, apenasEsseMes: false, dados: { nome: str(input, "nome"), icone: "📌", valor: num(input, "valor"), dia: input.dia != null ? Number(input.dia) : null, q: "Q1", parcelamento } },
         descricao: parcelamento
           ? `Adicionar despesa "${str(input, "nome")}" — ${fmt(parcelamento.valor)}, parcela ${parcelamento.atual}/${parcelamento.total}`
           : `Adicionar despesa "${str(input, "nome")}" — ${fmt(num(input, "valor"))}`,

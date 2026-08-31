@@ -32,6 +32,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     receitasRows,
     receitaOverridesRows,
     cartoesRows,
+    cartaoOverridesRows,
     parcelasRows,
     estadosRows,
     gastosRows,
@@ -48,6 +49,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     sql`SELECT * FROM receitas ORDER BY criado_em`,
     sql`SELECT * FROM receita_overrides`,
     sql`SELECT * FROM cartoes`,
+    sql`SELECT * FROM cartao_overrides`,
     sql`SELECT * FROM parcelas`,
     sql`SELECT * FROM estados`,
     sql`SELECT * FROM gastos ORDER BY criado_em`,
@@ -114,6 +116,14 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     apenasMes: (r.apenas_mes as string) ?? null,
   }));
 
+  const cartaoOverrides = new Map<string, Record<string, number>>();
+  for (const row of cartaoOverridesRows as Row[]) {
+    const id = row.cartao_id as string;
+    const map = cartaoOverrides.get(id) ?? {};
+    map[row.mes as string] = num(row.valor);
+    cartaoOverrides.set(id, map);
+  }
+
   const cartoes: Cartao[] = (cartoesRows as Row[]).map((r) => ({
     id: r.id as string,
     nome: r.nome as string,
@@ -121,6 +131,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     fechamento: numOrNull(r.fechamento),
     fechaUltimoUtil: Boolean(r.fecha_ultimo_util),
     vencimento: numOrNull(r.vencimento),
+    overrides: cartaoOverrides.get(r.id as string) ?? {},
   }));
 
   const parcelas: Parcela[] = (parcelasRows as Row[]).map((r) => ({

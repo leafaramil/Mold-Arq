@@ -165,6 +165,8 @@ export function Calendario({
   const [modal, setModal] = useState<ModalState | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
   const [cxAberta, setCxAberta] = useState<string | null>(null);
+  const [addRapido, setAddRapido] = useState<{ tipo: "despesa" | "receita"; q: Quinzena } | null>(null);
+  const [rapido, setRapido] = useState({ nome: "", valor: "", dia: "" });
   const hoje = useMemo(() => new Date(), []);
 
   const estadosDoMes = model.estados[mes] ?? {};
@@ -223,9 +225,11 @@ export function Calendario({
   function pagar(id: string, nome: string) {
     const e = estadoDeId(id);
     const gasto = gastoTotal(e.gastos);
-    const item = despesas.find((d) => d.id === id) ?? cartoes.find((c) => c.id === id);
-    const media = item && "overrides" in item ? mediaRealDe(id, item.overrides, model.estados, mes) : null;
-    const sugerido = e.separado != null ? gasto || e.separado : item ? previsto(item.valor, media) : 0;
+    const despesaItem = despesas.find((d) => d.id === id);
+    const cartaoItem = cartoes.find((c) => c.id === id);
+    const media = despesaItem ? mediaRealDe(id, despesaItem.overrides, model.estados, mes) : null;
+    const valorBase = despesaItem?.valor ?? cartaoItem?.valor;
+    const sugerido = e.separado != null ? gasto || e.separado : valorBase != null ? previsto(valorBase, media) : 0;
     setModal({
       tipo: "valor",
       titulo: `Pagar ${nome}`,
@@ -361,6 +365,97 @@ export function Calendario({
     dispatch({ type: "editarEstado", mes, itemId: id, campo, valor: parseValorBR(v) });
   }
 
+  // Uso do dia a dia: digitar a fatura do cartão direto neste mês, sem
+  // lançar parcela por parcela em Ajustes (isso continua existindo, pra
+  // quando tiver parcelamento de verdade).
+  function editarValorCartaoDireto(cartaoId: string, v: string) {
+    dispatch({ type: "editarValorCartao", cartaoId, mes, valor: parseValorBR(v) });
+  }
+
+  // "+" avulso do Calendário: coisa pontual (só existe neste mês), sem
+  // precisar navegar pra tela de Despesas/Receitas — aquelas continuam
+  // sendo só pra quem se repete todo mês.
+  function confirmarAddRapido() {
+    if (!addRapido || !rapido.nome.trim()) return;
+    const valor = parseValorBR(rapido.valor);
+    const dia = rapido.dia ? parseInt(rapido.dia, 10) : null;
+    if (addRapido.tipo === "despesa") {
+      dispatch({
+        type: "addDespesa",
+        itemId: uid(),
+        mes,
+        apenasEsseMes: true,
+        dados: { nome: rapido.nome, icone: "📌", valor, dia, q: addRapido.q },
+      });
+    } else {
+      dispatch({
+        type: "addReceita",
+        itemId: uid(),
+        mes,
+        apenasEsseMes: true,
+        dados: { nome: rapido.nome, icone: "💰", valor, dia, quando: dia ? `dia ${dia}` : "", q: addRapido.q },
+      });
+    }
+    mostrarToast(`Adicionado só em ${mes}`);
+    setRapido({ nome: "", valor: "", dia: "" });
+    setAddRapido(null);
+  }
+
+  function botaoAddRapido(tipo: "despesa" | "receita", q: Quinzena) {
+    const ativo = addRapido?.tipo === tipo && addRapido.q === q;
+    if (!ativo) {
+      return (
+        <div
+          onClick={() => {
+            setAddRapido({ tipo, q });
+            setRapido({ nome: "", valor: "", dia: "" });
+          }}
+          style={{ padding: "9px 2px", fontSize: 11.5, fontWeight: 700, color: T.gold, cursor: "pointer" }}
+        >
+          + {tipo === "despesa" ? "despesa" : "receita"} avulsa, só neste mês
+        </div>
+      );
+    }
+    return (
+      <div style={{ padding: "8px 2px 10px" }}>
+        <input
+          placeholder="Nome"
+          autoFocus
+          value={rapido.nome}
+          onChange={(e) => setRapido({ ...rapido, nome: e.target.value })}
+          style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, marginBottom: 6, fontSize: 12.5, fontFamily: "inherit" }}
+        />
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <input
+            placeholder="Valor"
+            type="text"
+            inputMode="decimal"
+            value={rapido.valor}
+            onChange={(e) => setRapido({ ...rapido, valor: e.target.value })}
+            style={{ flex: 1, padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, fontSize: 12.5 }}
+          />
+          <input
+            placeholder="Dia (opc.)"
+            type="number"
+            min={1}
+            max={31}
+            value={rapido.dia}
+            onChange={(e) => setRapido({ ...rapido, dia: e.target.value })}
+            style={{ width: 76, padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, fontSize: 12.5 }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn v="gold" onClick={confirmarAddRapido} style={{ padding: 9, fontSize: 12 }}>
+            Adicionar
+          </Btn>
+          <Btn v="ghost" onClick={() => setAddRapido(null)} style={{ padding: 9, fontSize: 12 }}>
+            Cancelar
+          </Btn>
+        </div>
+      </div>
+    );
+  }
+
   const bloco = (label: string, sub: string, qz: Quinzena) => {
     const rs = receitas.filter((r) => r.q === qz);
     const ds = despesas.filter((d) => d.q === qz);
@@ -411,6 +506,7 @@ export function Calendario({
               </div>
             );
           })}
+          {botaoAddRapido("receita", qz)}
         </Card>
 
         <Card style={{ padding: "3px 15px" }}>
@@ -436,7 +532,7 @@ export function Calendario({
                 riscado={pago}
                 alerta={!!av && av.dias < 0 && !pago}
                 editavel
-                onEditar={(v) => (pago ? editarEstadoDireto(ct.id, "pago", v) : sep ? editarEstadoDireto(ct.id, "separado", v) : undefined)}
+                onEditar={(v) => (pago ? editarEstadoDireto(ct.id, "pago", v) : sep ? editarEstadoDireto(ct.id, "separado", v) : editarValorCartaoDireto(ct.id, v))}
                 btns={btns}
               />
             );
@@ -528,6 +624,7 @@ export function Calendario({
               </div>
             );
           })}
+          {botaoAddRapido("despesa", qz)}
         </Card>
       </div>
     );

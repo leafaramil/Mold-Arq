@@ -185,7 +185,7 @@ export function ListaDespesas({
                 itemId: uid(),
                 mes,
                 apenasEsseMes: false,
-                dados: { nome: n.nome, icone: "📌", valor, dia, parcelamento },
+                dados: { nome: n.nome, icone: "📌", valor, dia, q: n.q, parcelamento },
               });
               setN({ nome: "", valor: "", dia: "", q: "Q1", parcelado: false, parcelaAtual: "1", parcelaTotal: "" });
               setOpen(false);
