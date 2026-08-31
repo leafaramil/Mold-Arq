@@ -161,7 +161,6 @@ export interface LivreBreakdown {
   separado: number; // ainda reservado, atravessando todas as despesas/cartões
   estouro: number;
   devolvido: number;
-  dizimoAberto: number;
   gastoZulMes: number;
   cartoesLancados: number;
 }
