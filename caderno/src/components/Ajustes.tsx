@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
-import { fmt, uid } from "@/lib/format";
+import { fmt, parseValorBR, uid } from "@/lib/format";
 import { faturaDoCartao, mesVizinho, saldoCaixinha, saldoPote } from "@/lib/calc";
 import type { Action } from "@/lib/action-types";
 import type { DataModel } from "@/lib/types";
@@ -46,9 +46,10 @@ export function Ajustes({
         <Tit>Reserva automática</Tit>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             defaultValue={model.config.reservaPct}
-            onBlur={(e) => dispatch({ type: "updateConfig", campo: "reservaPct", valor: parseFloat(e.target.value) || 0 })}
+            onBlur={(e) => dispatch({ type: "updateConfig", campo: "reservaPct", valor: parseValorBR(e.target.value) })}
             style={{ width: 78, padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 15 }}
           />
           <span style={{ fontSize: 12.5, color: T.inkSoft }}>% · ative por receita</span>
@@ -58,9 +59,10 @@ export function Ajustes({
       <Card>
         <Tit>Saldo inicial</Tit>
         <input
-          type="number"
+          type="text"
+          inputMode="decimal"
           defaultValue={model.config.saldoInicial}
-          onBlur={(e) => dispatch({ type: "updateConfig", campo: "saldoInicial", valor: parseFloat(e.target.value) || 0 })}
+          onBlur={(e) => dispatch({ type: "updateConfig", campo: "saldoInicial", valor: parseValorBR(e.target.value) })}
           style={{ width: "100%", padding: 10, borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 17, fontFamily: fontSerif }}
         />
         <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 6 }}>Só vale enquanto não houver histórico do mês anterior.</div>
@@ -77,7 +79,8 @@ export function Ajustes({
               {model.caixinhas[chave]?.icone} {model.caixinhas[chave]?.nome} · atual {fmt(saldoCaixinha(model.caixinhas[chave]?.mov ?? []))}
             </span>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               placeholder="0,00"
               value={zul[chave]}
               onChange={(e) => setZul({ ...zul, [chave]: e.target.value })}
@@ -85,7 +88,7 @@ export function Ajustes({
             />
             <div
               onClick={() => {
-                const saldo = parseFloat(zul[chave].replace(",", ".")) || 0;
+                const saldo = parseValorBR(zul[chave]);
                 if (saldo <= 0) return;
                 dispatch({ type: "definirSaldoInicialZul", chave, movId: uid(), saldo, mes });
                 setZul({ ...zul, [chave]: "" });
@@ -172,7 +175,8 @@ export function Ajustes({
               />
               <input
                 placeholder="Valor da parcela"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={np.parcela}
                 onChange={(e) => setNp({ ...np, parcela: e.target.value })}
                 style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, marginBottom: 6, fontSize: 12 }}
@@ -224,7 +228,7 @@ export function Ajustes({
                     type: "addParcela",
                     parcelaId: uid(),
                     desc: np.desc,
-                    parcela: parseFloat(np.parcela) || 0,
+                    parcela: parseValorBR(np.parcela),
                     atual: parseInt(np.atual, 10) || 1,
                     total: parseInt(np.total, 10) || 1,
                     cartaoId: ct.id,
@@ -276,7 +280,8 @@ export function Ajustes({
             />
             <input
               placeholder="Valor"
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={retirada.valor}
               onChange={(e) => setRetirada({ ...retirada, valor: e.target.value })}
               style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, marginBottom: 8, fontSize: 12 }}
@@ -284,7 +289,7 @@ export function Ajustes({
             <Btn
               v="gold"
               onClick={() => {
-                const valor = parseFloat(retirada.valor.replace(",", ".")) || 0;
+                const valor = parseValorBR(retirada.valor);
                 if (valor <= 0 || !retirada.desc) return;
                 dispatch({ type: "retirarPote", pote: retirada.pote, histId: uid(), desc: retirada.desc, valor: -valor });
                 setRetirada(null);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
-import { fmt, uid } from "@/lib/format";
+import { fmt, parseValorBR, uid } from "@/lib/format";
 import { mediaRealDe, nomeMes, resolverDespesa, resolverReceita } from "@/lib/calc";
 import type { Action } from "@/lib/action-types";
 import type { DataModel, Quinzena, ResolvedDespesa, ResolvedReceita } from "@/lib/types";
@@ -35,7 +35,7 @@ export function ListaDespesas({
   const [n, setN] = useState({ nome: "", valor: "", dia: "", q: "Q1" as Quinzena, parcelado: false, parcelaAtual: "1", parcelaTotal: "" });
 
   function editar(id: string, v: string) {
-    const valor = parseFloat(v.replace(",", ".")) || 0;
+    const valor = parseValorBR(v);
     setModal({
       titulo: "Aplicar em qual período?",
       onOk: (soNesseMes) => {
@@ -107,7 +107,8 @@ export function ListaDespesas({
           />
           <input
             placeholder={n.parcelado ? "Valor de cada parcela" : "Valor"}
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={n.valor}
             onChange={(e) => setN({ ...n, valor: e.target.value })}
             style={{ width: "100%", padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, marginBottom: 7, fontSize: 13, fontFamily: "inherit" }}
@@ -174,7 +175,7 @@ export function ListaDespesas({
             onClick={() => {
               if (!n.nome) return;
               const dia = n.dia ? parseInt(n.dia, 10) : null;
-              const valor = parseFloat(n.valor) || 0;
+              const valor = parseValorBR(n.valor);
               const parcelamento =
                 n.parcelado && n.parcelaTotal
                   ? { valor, atual: parseInt(n.parcelaAtual, 10) || 1, total: parseInt(n.parcelaTotal, 10), base: mes }
@@ -225,7 +226,7 @@ export function ListaReceitas({
   const [n, setN] = useState({ nome: "", valor: "", dia: "", q: "Q1" as Quinzena });
 
   function editar(id: string, v: string) {
-    const valor = parseFloat(v.replace(",", ".")) || 0;
+    const valor = parseValorBR(v);
     setModal({
       titulo: "Aplicar em qual período?",
       onOk: (soNesseMes) => {
@@ -319,7 +320,8 @@ export function ListaReceitas({
           />
           <input
             placeholder="Valor"
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={n.valor}
             onChange={(e) => setN({ ...n, valor: e.target.value })}
             style={{ width: "100%", padding: 9, borderRadius: 9, border: `1px solid ${T.line}`, marginBottom: 7, fontSize: 13, fontFamily: "inherit" }}
@@ -353,7 +355,7 @@ export function ListaReceitas({
                 itemId: uid(),
                 mes,
                 apenasEsseMes: false,
-                dados: { nome: n.nome, icone: "💰", valor: parseFloat(n.valor) || 0, dia, quando: dia ? `dia ${dia}` : "sem data", q: n.q },
+                dados: { nome: n.nome, icone: "💰", valor: parseValorBR(n.valor), dia, quando: dia ? `dia ${dia}` : "sem data", q: n.q },
               });
               setN({ nome: "", valor: "", dia: "", q: "Q1" });
               setOpen(false);
@@ -378,7 +380,8 @@ function EditavelValor({ valor, onEditar }: { valor: number; onEditar: (v: strin
   const [v, setV] = useState(String(valor));
   return ed ? (
     <input
-      type="number"
+      type="text"
+      inputMode="decimal"
       autoFocus
       value={v}
       onChange={(e) => setV(e.target.value)}
