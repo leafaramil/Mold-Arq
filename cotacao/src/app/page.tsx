@@ -58,8 +58,8 @@ function AppShell() {
   if (travado) return <TelaDesbloqueio nome={nome} onTentar={tentarDesbloquear} />;
   if (!model) return <Centro>Sem conexão e sem dados salvos neste aparelho ainda. Conecte à internet uma vez.</Centro>;
 
-  const listaAtual = model.listas.find((l) => l.id === listaAtualId) ?? null;
-  const itensDaListaAtual = model.itens.filter((i) => i.listaId === listaAtualId);
+  const listaAtual = (model.listas ?? []).find((l) => l.id === listaAtualId) ?? null;
+  const itensDaListaAtual = (model.itens ?? []).filter((i) => i.listaId === listaAtualId);
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", justifyContent: "center", padding: "20px 12px" }}>
@@ -79,8 +79,8 @@ function AppShell() {
         {tela === "home" && (
           <Home
             nome={nome}
-            listas={model.listas}
-            itens={model.itens}
+            listas={model.listas ?? []}
+            itens={model.itens ?? []}
             onNovaLista={novaLista}
             onAbrirLista={(id) => {
               setListaAtualId(id);

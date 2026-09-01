@@ -6,8 +6,13 @@ import { applyAction } from "./optimistic";
 import { desbloquearComBiometria, registrarBiometria, suportaBiometria } from "./biometria";
 import type { DataModel } from "./types";
 
-const CACHE_KEY = "cotacao-modelo";
-const FILA_KEY = "cotacao-fila";
+// v2: o formato do DataModel mudou (listas + quantidade/unidade nos itens)
+// depois que essas chaves já estavam em uso em produção — troca de nome
+// pra ignorar cache/fila salvos no formato antigo em vez de tentar ler um
+// shape que o código novo não reconhece (isso já causou uma tela em branco
+// com "Application error" pra quem tinha o app aberto de antes).
+const CACHE_KEY = "cotacao-modelo-v2";
+const FILA_KEY = "cotacao-fila-v2";
 const NOME_KEY = "cotacao-nome";
 const BIOMETRIA_KEY = "cotacao-biometria";
 
