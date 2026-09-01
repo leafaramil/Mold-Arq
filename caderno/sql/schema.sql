@@ -75,16 +75,6 @@ CREATE TABLE IF NOT EXISTS cartoes (
   vencimento INTEGER
 );
 
--- Valor da fatura digitado direto num mês (uso do dia a dia — sem lançar
--- parcela por parcela). Quando existe uma linha aqui pro mês, ela substitui
--- o total calculado a partir de `parcelas` só naquele mês.
-CREATE TABLE IF NOT EXISTS cartao_overrides (
-  cartao_id TEXT NOT NULL REFERENCES cartoes(id) ON DELETE CASCADE,
-  mes TEXT NOT NULL,
-  valor NUMERIC NOT NULL,
-  PRIMARY KEY (cartao_id, mes)
-);
-
 CREATE TABLE IF NOT EXISTS parcelas (
   id TEXT PRIMARY KEY,
   descricao TEXT NOT NULL,
@@ -106,7 +96,9 @@ CREATE TABLE IF NOT EXISTS estados (
   PRIMARY KEY (mes, item_id)
 );
 
--- gastos parciais dentro de uma caixinha de despesa (append-only)
+-- gastos parciais dentro de uma caixinha de despesa, OU compra avulsa (não
+-- parcelada) lançada num cartão — item_id é o id da despesa ou do cartão,
+-- não há distinção estrutural entre os dois casos (append-only)
 CREATE TABLE IF NOT EXISTS gastos (
   id TEXT PRIMARY KEY,
   mes TEXT NOT NULL,

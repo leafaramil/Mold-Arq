@@ -130,13 +130,14 @@ export function resolverReceita(r: Receita, mesRef: string): ResolvedReceita | n
 }
 
 /**
- * Resolve um cartão para um mês: usa o valor digitado direto naquele mês
- * (override — uso do dia a dia, sem lançar parcela por parcela), ou calcula
- * a fatura a partir dos parcelamentos cadastrados quando não há override.
+ * Resolve um cartão para um mês: fatura = soma dos parcelamentos cadastrados
+ * (Ajustes, para quem tem parcela de verdade) + compras avulsas lançadas na
+ * hora (o mesmo "gastos" que uma caixinha de despesa usa — uso do dia a dia,
+ * sem precisar cadastrar parcela por parcela). Os dois convivem: um cartão
+ * pode ter parcelamento em andamento E receber uma compra avulsa no mesmo mês.
  */
-export function resolverCartao(c: Cartao, parcelas: Parcela[], mesRef: string): ResolvedCartao {
-  const override = c.overrides?.[mesRef];
-  const valor = override !== undefined ? override : faturaDoCartao(parcelas, c.id, mesRef);
+export function resolverCartao(c: Cartao, parcelas: Parcela[], mesRef: string, gastosDoMes: GastoParcial[] = []): ResolvedCartao {
+  const valor = round2(faturaDoCartao(parcelas, c.id, mesRef) + gastoTotal(gastosDoMes));
   return { ...c, valor, q: quinzenaDoDia(c.vencimento, "Q1") };
 }
 
@@ -373,8 +374,8 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     .map((r) => resolverReceita(r, mesRef))
     .filter((r): r is ResolvedReceita => r !== null)
     .filter((r) => r.ativa);
-  const cartoes = model.cartoes.map((c) => resolverCartao(c, model.parcelas, mesRef));
   const estadosDoMes = model.estados[mesRef] ?? {};
+  const cartoes = model.cartoes.map((c) => resolverCartao(c, model.parcelas, mesRef, estadosDoMes[c.id]?.gastos));
 
   const gastoTotalDe = (id: string) => gastoTotal(estadosDoMes[id]?.gastos ?? []);
 

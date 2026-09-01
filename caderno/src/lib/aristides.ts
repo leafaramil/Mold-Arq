@@ -5,7 +5,6 @@ import {
   dizimoDe,
   dizimoPrevisto,
   estadoDe,
-  faturaDoCartao,
   gastoTotal,
   mediaRealDe,
   nomeMes,
@@ -25,8 +24,8 @@ export function retratoFinanceiro(model: DataModel, mes: string, hoje: Date): st
     .map((r) => resolverReceita(r, mes))
     .filter((r): r is NonNullable<typeof r> => r !== null)
     .filter((r) => r.ativa);
-  const cartoes = model.cartoes.map((c) => resolverCartao(c, model.parcelas, mes));
   const estadosDoMes = model.estados[mes] ?? {};
+  const cartoes = model.cartoes.map((c) => resolverCartao(c, model.parcelas, mes, estadosDoMes[c.id]?.gastos));
 
   const impostoRafaelValor = despesas.find((d) => d.id === "imposto_rafael")?.valor ?? 0;
   const contadorValor = despesas.find((d) => d.id === "contador")?.valor ?? 0;
@@ -50,7 +49,7 @@ export function retratoFinanceiro(model: DataModel, mes: string, hoje: Date): st
     .join("\n");
 
   const linhasCartoes = cartoes
-    .map((c) => `- ${c.nome}: fatura ${fmt(faturaDoCartao(model.parcelas, c.id, mes))}${c.vencimento ? `, vence dia ${c.vencimento}` : ""}`)
+    .map((c) => `- ${c.nome}: fatura ${fmt(c.valor)}${c.vencimento ? `, vence dia ${c.vencimento}` : ""}`)
     .join("\n");
 
   const linhasParcelas = model.parcelas
