@@ -1,5 +1,5 @@
 import type { NeonQueryFunction } from "@neondatabase/serverless";
-import type { DataModel, Item, Lista } from "./types";
+import type { Cotacao, DataModel, Item, Lista, ResultadoCotacao } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -10,9 +10,10 @@ type Row = Record<string, unknown>;
 const paraIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : String(v));
 
 export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<DataModel> {
-  const [listasRows, itensRows, configRows] = await Promise.all([
+  const [listasRows, itensRows, cotacoesRows, configRows] = await Promise.all([
     sql`SELECT * FROM listas ORDER BY criada_em DESC`,
     sql`SELECT * FROM itens ORDER BY criado_em`,
+    sql`SELECT * FROM cotacoes`,
     sql`SELECT * FROM config WHERE id = 1`,
   ]);
 
@@ -24,11 +25,16 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     quantidade: r.quantidade == null ? 1 : parseFloat(String(r.quantidade)),
     unidade: (r.unidade as string) ?? "un",
   }));
+  const cotacoes: Cotacao[] = (cotacoesRows as Row[]).map((r) => ({
+    listaId: r.lista_id as string,
+    resultado: r.resultado as ResultadoCotacao,
+  }));
   const configRow = (configRows as Row[])[0];
 
   return {
     listas,
     itens,
+    cotacoes,
     config: { shibataToken: (configRow?.shibata_token as string | null) ?? null },
   };
 }

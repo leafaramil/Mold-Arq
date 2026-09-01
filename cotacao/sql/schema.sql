@@ -5,9 +5,7 @@
 -- acontece de verdade, e evita que a lista cresça pra sempre misturando
 -- semanas diferentes. Cada listinha sincroniza entre os dois aparelhos com
 -- o mesmo padrão do resto do app (fila otimista local + POST /api/actions +
--- GET /api/state). O resultado de uma cotação (busca nos mercados +
--- matching por IA) é sempre recalculado na hora, a pedido (POST
--- /api/cotar) — não é gravado no banco, então não precisa de tabela própria.
+-- GET /api/state).
 
 CREATE TABLE IF NOT EXISTS listas (
   id TEXT PRIMARY KEY,
@@ -27,6 +25,18 @@ CREATE TABLE IF NOT EXISTS itens (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS itens_lista_idx ON itens (lista_id);
+
+-- Última cotação de cada listinha (1 por listinha, não histórico — cotar
+-- de novo substitui). Guarda o ResultadoCotacao inteiro (src/lib/types.ts)
+-- como um bloco só, incluindo trocas manuais de produto feitas na tela de
+-- resultado (ver src/components/Resultado.tsx) — é sempre o retrato da
+-- última tela vista, não dado normalizado de negócio, por isso JSONB em
+-- vez de tabelas separadas por item/candidato.
+CREATE TABLE IF NOT EXISTS cotacoes (
+  lista_id TEXT PRIMARY KEY REFERENCES listas(id) ON DELETE CASCADE,
+  resultado JSONB NOT NULL,
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- configuração geral (linha única) — hoje só guarda o token de sessão do
 -- Shibata, que expira e precisa ser colado manualmente em Ajustes (ver

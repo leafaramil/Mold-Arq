@@ -5,23 +5,27 @@ import { T, fontSerif } from "@/lib/theme";
 import { formatarData, uid } from "@/lib/format";
 import { rotuloUnidade, sugerirUnidade, UNIDADES, type Unidade } from "@/lib/unidades";
 import type { Action } from "@/lib/action-types";
-import type { Item, Lista as ListaType } from "@/lib/types";
+import type { Item, Lista as ListaType, ResultadoCotacao } from "@/lib/types";
 import { Btn, Card } from "./ui";
 
 export function Lista({
   lista,
   itens,
   cotando,
+  cotacaoSalva,
   dispatch,
   onCotar,
+  onVerCotacao,
   onExcluida,
   onClose,
 }: {
   lista: ListaType;
   itens: Item[];
   cotando: boolean;
+  cotacaoSalva: ResultadoCotacao | null;
   dispatch: (action: Action) => void;
   onCotar: () => void;
+  onVerCotacao: () => void;
   onExcluida: () => void;
   onClose: () => void;
 }) {
@@ -206,6 +210,16 @@ export function Lista({
           </div>
         </Card>
       ))}
+
+      {cotacaoSalva && (
+        <Card onClick={onVerCotacao} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>Última cotação</div>
+            <div style={{ fontSize: 11, color: T.inkSoft }}>{new Date(cotacaoSalva.geradoEm).toLocaleString("pt-BR")}</div>
+          </div>
+          <div style={{ color: T.gold, fontSize: 13 }}>ver →</div>
+        </Card>
+      )}
 
       {itens.length > 0 && (
         <div style={{ marginTop: 20 }}>

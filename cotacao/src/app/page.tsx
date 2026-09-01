@@ -44,14 +44,16 @@ function AppShell() {
         mostrarToast(dados.erro ?? "Não deu pra cotar agora.");
         return;
       }
-      setResultado(dados as ResultadoCotacao);
+      const resultadoNovo = dados as ResultadoCotacao;
+      setResultado(resultadoNovo);
+      dispatch({ type: "salvarCotacao", listaId: listaAtualId, resultado: resultadoNovo });
       setTela("resultado");
     } catch {
       mostrarToast("Sem conexão — não deu pra cotar agora.");
     } finally {
       setCotando(false);
     }
-  }, [listaAtualId, mostrarToast]);
+  }, [listaAtualId, mostrarToast, dispatch]);
 
   if (carregando && !model) return <Centro>Carregando…</Centro>;
   if (!nome) return <Login onOk={entrar} />;
@@ -60,6 +62,7 @@ function AppShell() {
 
   const listaAtual = (model.listas ?? []).find((l) => l.id === listaAtualId) ?? null;
   const itensDaListaAtual = (model.itens ?? []).filter((i) => i.listaId === listaAtualId);
+  const cotacaoSalva = (model.cotacoes ?? []).find((c) => c.listaId === listaAtualId)?.resultado ?? null;
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", justifyContent: "center", padding: "20px 12px" }}>
@@ -95,8 +98,15 @@ function AppShell() {
             lista={listaAtual}
             itens={itensDaListaAtual}
             cotando={cotando}
+            cotacaoSalva={cotacaoSalva}
             dispatch={dispatch}
             onCotar={cotar}
+            onVerCotacao={() => {
+              if (cotacaoSalva) {
+                setResultado(cotacaoSalva);
+                setTela("resultado");
+              }
+            }}
             onExcluida={() => {
               setListaAtualId(null);
               setTela("home");
@@ -105,8 +115,14 @@ function AppShell() {
           />
         )}
 
-        {tela === "resultado" && resultado && (
-          <Resultado resultado={resultado} onIrAjustes={() => setTela("ajustes")} onClose={() => setTela("lista")} />
+        {tela === "resultado" && resultado && listaAtualId && (
+          <Resultado
+            resultado={resultado}
+            listaId={listaAtualId}
+            dispatch={dispatch}
+            onIrAjustes={() => setTela("ajustes")}
+            onClose={() => setTela("lista")}
+          />
         )}
 
         {tela === "ajustes" && (

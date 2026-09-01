@@ -20,5 +20,10 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
     case "setShibataToken":
       await sql`UPDATE config SET shibata_token = ${action.token} WHERE id = 1`;
       return;
+    case "salvarCotacao":
+      await sql`INSERT INTO cotacoes (lista_id, resultado, atualizado_em)
+                VALUES (${action.listaId}, ${JSON.stringify(action.resultado)}::jsonb, now())
+                ON CONFLICT (lista_id) DO UPDATE SET resultado = EXCLUDED.resultado, atualizado_em = now()`;
+      return;
   }
 }

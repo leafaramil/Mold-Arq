@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { fmt, round2 } from "@/lib/format";
 import { rotuloUnidade } from "@/lib/unidades";
+import type { Action } from "@/lib/action-types";
 import type { MercadoId } from "@/lib/matching";
 import type { ResultadoCotacao } from "@/lib/types";
 import { Btn, Card, Topo } from "./ui";
@@ -18,7 +19,19 @@ function chave(mercadoId: string, itemId: string): string {
   return `${mercadoId}:${itemId}`;
 }
 
-export function Resultado({ resultado, onIrAjustes, onClose }: { resultado: ResultadoCotacao; onIrAjustes: () => void; onClose: () => void }) {
+export function Resultado({
+  resultado,
+  listaId,
+  dispatch,
+  onIrAjustes,
+  onClose,
+}: {
+  resultado: ResultadoCotacao;
+  listaId: string;
+  dispatch: (action: Action) => void;
+  onIrAjustes: () => void;
+  onClose: () => void;
+}) {
   const [escolhas, setEscolhas] = useState<Escolhas>(() => {
     const inicial: Escolhas = {};
     for (const m of resultado.mercados) {
@@ -27,6 +40,27 @@ export function Resultado({ resultado, onIrAjustes, onClose }: { resultado: Resu
     return inicial;
   });
   const [pickerAberto, setPickerAberto] = useState<string | null>(null);
+
+  // A cotação já chega salva (page.tsx salva assim que /api/cotar responde)
+  // — só precisa persistir de novo quando o usuário troca uma escolha aqui.
+  // A flag evita salvar de novo no primeiro render, que já reflete o que
+  // está salvo.
+  const primeiraRenderizacao = useRef(true);
+  useEffect(() => {
+    if (primeiraRenderizacao.current) {
+      primeiraRenderizacao.current = false;
+      return;
+    }
+    const resultadoAtualizado: ResultadoCotacao = {
+      ...resultado,
+      mercados: resultado.mercados.map((m) => ({
+        ...m,
+        itens: m.itens.map((item) => ({ ...item, escolhaIndex: escolhas[chave(m.mercadoId, item.itemId)] ?? null })),
+      })),
+    };
+    dispatch({ type: "salvarCotacao", listaId, resultado: resultadoAtualizado });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escolhas]);
 
   const totais = useMemo(() => {
     const t: Record<string, number> = {};

@@ -23,9 +23,9 @@ export function Centro({ children }: { children: ReactNode }) {
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export function Card({ children, style, onClick }: { children: ReactNode; style?: CSSProperties; onClick?: () => void }) {
   return (
-    <div style={{ background: T.raised, border: `1px solid ${T.line}`, borderRadius: 16, padding: 15, marginBottom: 11, ...style }}>
+    <div onClick={onClick} style={{ background: T.raised, border: `1px solid ${T.line}`, borderRadius: 16, padding: 15, marginBottom: 11, ...style }}>
       {children}
     </div>
   );

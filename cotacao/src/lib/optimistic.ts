@@ -14,6 +14,7 @@ export function applyAction(model: DataModel, action: Action): DataModel {
         ...model,
         listas: model.listas.filter((l) => l.id !== action.listaId),
         itens: model.itens.filter((i) => i.listaId !== action.listaId),
+        cotacoes: model.cotacoes.filter((c) => c.listaId !== action.listaId),
       };
     case "addItem":
       return {
@@ -24,6 +25,11 @@ export function applyAction(model: DataModel, action: Action): DataModel {
       return { ...model, itens: model.itens.filter((i) => i.id !== action.itemId) };
     case "setShibataToken":
       return { ...model, config: { ...model.config, shibataToken: action.token } };
+    case "salvarCotacao":
+      return {
+        ...model,
+        cotacoes: [...model.cotacoes.filter((c) => c.listaId !== action.listaId), { listaId: action.listaId, resultado: action.resultado }],
+      };
     default:
       return model;
   }
