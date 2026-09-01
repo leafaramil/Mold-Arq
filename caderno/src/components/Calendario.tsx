@@ -17,6 +17,7 @@ import {
   resolverCartao,
   resolverDespesa,
   resolverReceita,
+  round2,
   saldoCaixinha,
   textoAviso,
   type FaixaZul,
@@ -513,26 +514,50 @@ export function Calendario({
           {cs.map((ct) => {
             const e = estadoDeId(ct.id);
             const pago = e.pago != null;
+            const falta = pago ? round2(ct.valor - e.pago!) : 0;
+            // Depois de marcar "pago", pode entrar mais um lançamento na mesma
+            // fatura antes do vencimento (compra do dia a dia) — a fatura sobe,
+            // mas o que já foi pago continua registrado. Trata como "quitado"
+            // só quando o pago já cobre a fatura inteira.
+            const quitado = pago && falta <= 0.004;
             const sep = e.separado != null;
             const av = avisoDe(ct.id);
-            const btns: Btn2[] = pago
+            const btns: Btn2[] = quitado
               ? [{ t: "✓ pago", on: () => dispatch({ type: "desPagar", mes, itemId: ct.id }), ativo: true }]
-              : sep
-                ? [{ t: "🫙", on: () => dispatch({ type: "desSeparar", mes, itemId: ct.id }), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }]
-                : [{ t: "Separar", on: () => separar(ct.id, ct.nome, ct.valor), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }];
+              : pago
+                ? [{ t: "Corrigir", on: () => pagar(ct.id, ct.nome) }]
+                : sep
+                  ? [{ t: "🫙", on: () => dispatch({ type: "desSeparar", mes, itemId: ct.id }), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }]
+                  : [{ t: "Separar", on: () => separar(ct.id, ct.nome, ct.valor), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }];
             return (
               <Linha
                 key={ct.id}
                 ic={ct.icone}
                 nome={ct.nome}
-                meta={pago ? "pago" : sep ? "separado, esperando a fatura" : av ? textoAviso(av.dias) : ct.vencimento ? `vence dia ${ct.vencimento}` : "sem data"}
-                valor={pago ? e.pago! : sep ? e.separado! : ct.valor}
+                meta={
+                  quitado
+                    ? "pago"
+                    : pago
+                      ? `pago ${fmt(e.pago)} · falta ${fmt(falta)}`
+                      : sep
+                        ? "separado, esperando a fatura"
+                        : av
+                          ? textoAviso(av.dias)
+                          : ct.vencimento
+                            ? `vence dia ${ct.vencimento}`
+                            : "sem data"
+                }
+                valor={quitado ? e.pago! : pago ? falta : sep ? e.separado! : ct.valor}
                 cor={T.brick}
                 sinal="−"
-                riscado={pago}
-                alerta={!!av && av.dias < 0 && !pago}
-                editavel
-                onEditar={(v) => (pago ? editarEstadoDireto(ct.id, "pago", v) : sep ? editarEstadoDireto(ct.id, "separado", v) : editarValorCartaoDireto(ct.id, v))}
+                riscado={quitado}
+                alerta={!!av && av.dias < 0 && !quitado}
+                // enquanto só parte da fatura foi paga (pago, mas não quitado), o
+                // número mostrado é o que FALTA, não o total pago — editar direto
+                // aqui confundiria os dois; corrige pelo botão "Corrigir" (mesmo
+                // fluxo de "Pagar", pede o total já pago de verdade)
+                editavel={quitado || !pago}
+                onEditar={(v) => (quitado ? editarEstadoDireto(ct.id, "pago", v) : sep ? editarEstadoDireto(ct.id, "separado", v) : editarValorCartaoDireto(ct.id, v))}
                 btns={btns}
               />
             );
