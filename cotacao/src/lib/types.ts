@@ -1,5 +1,11 @@
+export interface Lista {
+  id: string;
+  criadaEm: string; // ISO — data de criação da listinha, mostrada no card da Home
+}
+
 export interface Item {
   id: string;
+  listaId: string;
   texto: string;
 }
 
@@ -8,6 +14,7 @@ export interface Config {
 }
 
 export interface DataModel {
+  listas: Lista[];
   itens: Item[];
   config: Config;
 }

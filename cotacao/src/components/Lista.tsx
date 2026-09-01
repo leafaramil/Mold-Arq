@@ -2,60 +2,107 @@
 
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
-import { uid } from "@/lib/format";
+import { formatarData, uid } from "@/lib/format";
 import type { Action } from "@/lib/action-types";
-import type { Item } from "@/lib/types";
+import type { Item, Lista as ListaType } from "@/lib/types";
 import { Btn, Card } from "./ui";
 
 export function Lista({
+  lista,
   itens,
-  nome,
   cotando,
   dispatch,
   onCotar,
-  onAjustes,
+  onExcluida,
+  onClose,
 }: {
+  lista: ListaType;
   itens: Item[];
-  nome: string;
   cotando: boolean;
   dispatch: (action: Action) => void;
   onCotar: () => void;
-  onAjustes: () => void;
+  onExcluida: () => void;
+  onClose: () => void;
 }) {
   const [texto, setTexto] = useState("");
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   function adicionar() {
     const limpo = texto.trim();
     if (!limpo) return;
-    dispatch({ type: "addItem", itemId: uid(), texto: limpo });
+    dispatch({ type: "addItem", itemId: uid(), listaId: lista.id, texto: limpo });
     setTexto("");
+  }
+
+  function excluirListinha() {
+    dispatch({ type: "removerLista", listaId: lista.id });
+    onExcluida();
   }
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: fontSerif, fontSize: 24, fontWeight: 600, color: T.ink }}>Lista de compras</div>
-          <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2 }}>oi, {nome}</div>
+          <div style={{ fontFamily: fontSerif, fontSize: 22, fontWeight: 600, color: T.ink }}>{formatarData(lista.criadaEm)}</div>
+          <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2 }}>lista de compras</div>
         </div>
-        <div
-          onClick={onAjustes}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            background: T.raised,
-            border: `1px solid ${T.line}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            fontSize: 15,
-          }}
-        >
-          ⚙️
+        <div style={{ display: "flex", gap: 8 }}>
+          <div
+            onClick={() => setConfirmandoExclusao(true)}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: T.raised,
+              border: `1px solid ${T.line}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: 14,
+              color: T.brick,
+            }}
+          >
+            🗑️
+          </div>
+          <div
+            onClick={onClose}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: T.raised,
+              border: `1px solid ${T.line}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            ✕
+          </div>
         </div>
       </div>
+
+      {confirmandoExclusao && (
+        <Card style={{ background: T.brickSoft, border: `1px solid ${T.brick}` }}>
+          <div style={{ fontSize: 12.5, color: T.ink, marginBottom: 10 }}>
+            Excluir essa listinha inteira, com todos os {itens.length} itens? Não dá pra desfazer.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn v="ghost" onClick={() => setConfirmandoExclusao(false)}>
+              Cancelar
+            </Btn>
+            <Btn
+              onClick={excluirListinha}
+              style={{ background: T.brick, color: "#fff" }}
+            >
+              Excluir
+            </Btn>
+          </div>
+        </Card>
+      )}
 
       <Card style={{ display: "flex", gap: 8 }}>
         <input

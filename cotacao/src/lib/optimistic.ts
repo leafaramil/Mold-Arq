@@ -7,8 +7,16 @@ import type { DataModel } from "./types";
 
 export function applyAction(model: DataModel, action: Action): DataModel {
   switch (action.type) {
+    case "criarLista":
+      return { ...model, listas: [...model.listas, { id: action.listaId, criadaEm: action.criadaEm }] };
+    case "removerLista":
+      return {
+        ...model,
+        listas: model.listas.filter((l) => l.id !== action.listaId),
+        itens: model.itens.filter((i) => i.listaId !== action.listaId),
+      };
     case "addItem":
-      return { ...model, itens: [...model.itens, { id: action.itemId, texto: action.texto }] };
+      return { ...model, itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto }] };
     case "removerItem":
       return { ...model, itens: model.itens.filter((i) => i.id !== action.itemId) };
     case "setShibataToken":

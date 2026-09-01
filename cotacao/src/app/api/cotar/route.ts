@@ -28,14 +28,19 @@ function acumuladorVazio(): AcumuladorMercado {
   return { total: 0, encontrados: [], naoEncontrados: [], tokenExpirado: false, erro: null };
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const { listaId } = (await req.json().catch(() => ({}))) as { listaId?: string };
+    if (!listaId) {
+      return NextResponse.json({ erro: "listaId é obrigatório." }, { status: 400 });
+    }
+
     const model = await loadModel(getSql());
-    const { itens } = model;
+    const itens = model.itens.filter((i) => i.listaId === listaId);
     const token = model.config.shibataToken;
 
     if (itens.length === 0) {
-      return NextResponse.json({ erro: "A lista de compras está vazia." }, { status: 400 });
+      return NextResponse.json({ erro: "Essa listinha está vazia." }, { status: 400 });
     }
 
     const acumuladores: Record<MercadoId, AcumuladorMercado> = {
