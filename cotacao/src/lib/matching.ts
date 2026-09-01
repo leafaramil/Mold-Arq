@@ -13,7 +13,7 @@
 import { chamarAnthropicComFerramenta, type AnthropicTool } from "./anthropic-server";
 import type { ProdutoEncontrado } from "./mercados/types";
 
-export type MercadoId = "shibata" | "semar" | "alabarce";
+export type MercadoId = "shibata" | "semar" | "alabarce" | "atacadao";
 
 const SEM_MATCH = -1;
 
@@ -39,12 +39,14 @@ interface CandidatosPorMercado {
   shibata: ProdutoEncontrado[];
   semar: ProdutoEncontrado[];
   alabarce: ProdutoEncontrado[];
+  atacadao: ProdutoEncontrado[];
 }
 
 export interface MatchEscolhido {
   shibata: number | null; // índice em candidatos.shibata, ou null
   semar: number | null;
   alabarce: number | null;
+  atacadao: number | null;
 }
 
 const TOOL: AnthropicTool = {
@@ -59,8 +61,9 @@ const TOOL: AnthropicTool = {
       shibata: { type: "integer", description: `Índice (a partir de 0) do candidato do Shibata, ou ${SEM_MATCH} se nenhum servir.` },
       semar: { type: "integer", description: `Índice (a partir de 0) do candidato do Semar, ou ${SEM_MATCH} se nenhum servir.` },
       alabarce: { type: "integer", description: `Índice (a partir de 0) do candidato do Alabarce, ou ${SEM_MATCH} se nenhum servir.` },
+      atacadao: { type: "integer", description: `Índice (a partir de 0) do candidato do Atacadão, ou ${SEM_MATCH} se nenhum servir.` },
     },
-    required: ["shibata", "semar", "alabarce"],
+    required: ["shibata", "semar", "alabarce", "atacadao"],
   },
 };
 
@@ -77,11 +80,11 @@ function indiceValido(i: number | undefined, tamanho: number): number | null {
 
 /** Sem candidato nenhum nos 3 mercados, nem vale a pena chamar a IA. */
 function semCandidatos(c: CandidatosPorMercado): boolean {
-  return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0;
+  return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0 && c.atacadao.length === 0;
 }
 
 export async function escolherMatches(itemTexto: string, candidatos: CandidatosPorMercado): Promise<{ escolha: MatchEscolhido; tokensEntrada: number; tokensSaida: number }> {
-  const vazio: MatchEscolhido = { shibata: null, semar: null, alabarce: null };
+  const vazio: MatchEscolhido = { shibata: null, semar: null, alabarce: null, atacadao: null };
   if (semCandidatos(candidatos)) {
     return { escolha: vazio, tokensEntrada: 0, tokensSaida: 0 };
   }
@@ -98,6 +101,7 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
     listarCandidatos("Shibata", candidatos.shibata),
     listarCandidatos("Semar", candidatos.semar),
     listarCandidatos("Alabarce", candidatos.alabarce),
+    listarCandidatos("Atacadão", candidatos.atacadao),
   ].join("\n");
 
   const resposta = await chamarAnthropicComFerramenta(system, mensagem, TOOL);
@@ -107,6 +111,7 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
     shibata: indiceValido(input.shibata as number | undefined, candidatos.shibata.length),
     semar: indiceValido(input.semar as number | undefined, candidatos.semar.length),
     alabarce: indiceValido(input.alabarce as number | undefined, candidatos.alabarce.length),
+    atacadao: indiceValido(input.atacadao as number | undefined, candidatos.atacadao.length),
   };
 
   return { escolha, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida };
