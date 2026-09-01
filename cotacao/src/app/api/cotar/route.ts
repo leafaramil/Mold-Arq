@@ -81,8 +81,17 @@ export async function POST(req: Request) {
           continue;
         }
         const produto = buscas[mercadoId].produtos[idx];
-        acc.total = round2(acc.total + produto.preco);
-        acc.encontrados.push({ itemId: item.id, itemTexto: item.texto, produtoNome: produto.nome, preco: produto.preco });
+        const subtotal = round2(produto.preco * item.quantidade);
+        acc.total = round2(acc.total + subtotal);
+        acc.encontrados.push({
+          itemId: item.id,
+          itemTexto: item.texto,
+          quantidade: item.quantidade,
+          unidade: item.unidade,
+          produtoNome: produto.nome,
+          precoUnitario: produto.preco,
+          subtotal,
+        });
       }
     });
 

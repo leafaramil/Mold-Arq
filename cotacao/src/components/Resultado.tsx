@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { fmt } from "@/lib/format";
+import { rotuloUnidade } from "@/lib/unidades";
 import type { ResultadoCotacao } from "@/lib/types";
 import { Btn, Card, Topo } from "./ui";
 
@@ -63,12 +64,14 @@ export function Resultado({ resultado, onIrAjustes, onClose }: { resultado: Resu
                   </div>
                 ))}
                 {m.encontrados.map((item) => (
-                  <div
-                    key={item.itemId}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", fontSize: 12.5 }}
-                  >
-                    <div style={{ color: T.ink }}>{item.produtoNome}</div>
-                    <div style={{ color: T.ink, fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(item.preco)}</div>
+                  <div key={item.itemId} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", fontSize: 12.5 }}>
+                    <div>
+                      <div style={{ color: T.ink }}>{item.produtoNome}</div>
+                      <div style={{ color: T.inkSoft, fontSize: 10.5 }}>
+                        {item.quantidade} {rotuloUnidade(item.unidade)} × {fmt(item.precoUnitario)}
+                      </div>
+                    </div>
+                    <div style={{ color: T.ink, fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(item.subtotal)}</div>
                   </div>
                 ))}
               </div>

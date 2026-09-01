@@ -17,7 +17,13 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
   ]);
 
   const listas: Lista[] = (listasRows as Row[]).map((r) => ({ id: r.id as string, criadaEm: paraIso(r.criada_em) }));
-  const itens: Item[] = (itensRows as Row[]).map((r) => ({ id: r.id as string, listaId: r.lista_id as string, texto: r.texto as string }));
+  const itens: Item[] = (itensRows as Row[]).map((r) => ({
+    id: r.id as string,
+    listaId: r.lista_id as string,
+    texto: r.texto as string,
+    quantidade: r.quantidade == null ? 1 : parseFloat(String(r.quantidade)),
+    unidade: (r.unidade as string) ?? "un",
+  }));
   const configRow = (configRows as Row[])[0];
 
   return {

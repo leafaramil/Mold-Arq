@@ -12,7 +12,7 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
       await sql`DELETE FROM listas WHERE id = ${action.listaId}`;
       return;
     case "addItem":
-      await sql`INSERT INTO itens (id, lista_id, texto) VALUES (${action.itemId}, ${action.listaId}, ${action.texto}) ON CONFLICT (id) DO NOTHING`;
+      await sql`INSERT INTO itens (id, lista_id, texto, quantidade, unidade) VALUES (${action.itemId}, ${action.listaId}, ${action.texto}, ${action.quantidade}, ${action.unidade}) ON CONFLICT (id) DO NOTHING`;
       return;
     case "removerItem":
       await sql`DELETE FROM itens WHERE id = ${action.itemId}`;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { formatarData, uid } from "@/lib/format";
+import { rotuloUnidade, sugerirUnidade, UNIDADES, type Unidade } from "@/lib/unidades";
 import type { Action } from "@/lib/action-types";
 import type { Item, Lista as ListaType } from "@/lib/types";
 import { Btn, Card } from "./ui";
@@ -25,13 +26,27 @@ export function Lista({
   onClose: () => void;
 }) {
   const [texto, setTexto] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
+  const [unidade, setUnidade] = useState<Unidade>("un");
+  const [unidadeTocada, setUnidadeTocada] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+
+  function aoMudarTexto(v: string) {
+    setTexto(v);
+    // sugere a unidade a partir do que foi digitado, só enquanto a pessoa
+    // não tiver escolhido uma unidade manualmente pra esse item
+    if (!unidadeTocada) setUnidade(sugerirUnidade(v));
+  }
 
   function adicionar() {
     const limpo = texto.trim();
     if (!limpo) return;
-    dispatch({ type: "addItem", itemId: uid(), listaId: lista.id, texto: limpo });
+    const qtd = parseFloat(quantidade.replace(",", ".")) || 1;
+    dispatch({ type: "addItem", itemId: uid(), listaId: lista.id, texto: limpo, quantidade: qtd, unidade });
     setTexto("");
+    setQuantidade("1");
+    setUnidade("un");
+    setUnidadeTocada(false);
   }
 
   function excluirListinha() {
@@ -104,28 +119,72 @@ export function Lista({
         </Card>
       )}
 
-      <Card style={{ display: "flex", gap: 8 }}>
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && adicionar()}
-          placeholder="ex: arroz 5kg, sabonete dove…"
-          style={{
-            flex: 1,
-            border: `1px solid ${T.line}`,
-            borderRadius: 10,
-            padding: "10px 12px",
-            fontSize: 13.5,
-            background: T.paper,
-            color: T.ink,
-          }}
-        />
-        <button
-          onClick={adicionar}
-          style={{ background: T.green, color: "#fff", border: "none", borderRadius: 10, width: 44, fontSize: 18, fontWeight: 700, cursor: "pointer" }}
-        >
-          +
-        </button>
+      <Card>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input
+            value={texto}
+            onChange={(e) => aoMudarTexto(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && adicionar()}
+            placeholder="ex: arroz 5kg, sabonete dove…"
+            style={{
+              flex: 1,
+              border: `1px solid ${T.line}`,
+              borderRadius: 10,
+              padding: "10px 12px",
+              fontSize: 13.5,
+              background: T.paper,
+              color: T.ink,
+            }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={quantidade}
+            onChange={(e) => setQuantidade(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && adicionar()}
+            inputMode="decimal"
+            aria-label="quantidade"
+            style={{
+              width: 64,
+              border: `1px solid ${T.line}`,
+              borderRadius: 10,
+              padding: "10px 8px",
+              fontSize: 13.5,
+              background: T.paper,
+              color: T.ink,
+              textAlign: "center",
+            }}
+          />
+          <select
+            value={unidade}
+            onChange={(e) => {
+              setUnidade(e.target.value as Unidade);
+              setUnidadeTocada(true);
+            }}
+            aria-label="unidade"
+            style={{
+              flex: 1,
+              border: `1px solid ${T.line}`,
+              borderRadius: 10,
+              padding: "10px 8px",
+              fontSize: 13.5,
+              background: T.paper,
+              color: T.ink,
+            }}
+          >
+            {UNIDADES.map((u) => (
+              <option key={u.valor} value={u.valor}>
+                {u.rotulo}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={adicionar}
+            style={{ background: T.green, color: "#fff", border: "none", borderRadius: 10, width: 44, fontSize: 18, fontWeight: 700, cursor: "pointer" }}
+          >
+            +
+          </button>
+        </div>
       </Card>
 
       {itens.length === 0 && (
@@ -136,7 +195,12 @@ export function Lista({
 
       {itens.map((item) => (
         <Card key={item.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 15px" }}>
-          <div style={{ fontSize: 13.5, color: T.ink }}>{item.texto}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 13.5, color: T.ink }}>{item.texto}</div>
+            <div style={{ fontSize: 10.5, color: T.inkSoft, background: T.paper, border: `1px solid ${T.line}`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap" }}>
+              {item.quantidade} {rotuloUnidade(item.unidade)}
+            </div>
+          </div>
           <div onClick={() => dispatch({ type: "removerItem", itemId: item.id })} style={{ cursor: "pointer", color: T.brick, fontSize: 15, padding: "0 4px" }}>
             ✕
           </div>

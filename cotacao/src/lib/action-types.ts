@@ -4,6 +4,6 @@
 export type Action =
   | { type: "criarLista"; listaId: string; criadaEm: string }
   | { type: "removerLista"; listaId: string }
-  | { type: "addItem"; itemId: string; listaId: string; texto: string }
+  | { type: "addItem"; itemId: string; listaId: string; texto: string; quantidade: number; unidade: string }
   | { type: "removerItem"; itemId: string }
   | { type: "setShibataToken"; token: string };

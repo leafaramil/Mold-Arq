@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS itens (
   id TEXT PRIMARY KEY,
   lista_id TEXT NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
   texto TEXT NOT NULL,
+  -- quantidade × preço do produto casado no mercado = subtotal daquele item
+  -- na cotação (ver src/app/api/cotar/route.ts). unidade é só rótulo (kg, L,
+  -- dúzia, ...) sugerido por src/lib/unidades.ts a partir do texto — não
+  -- converte entre unidades, é sempre uma multiplicação direta.
+  quantidade NUMERIC NOT NULL DEFAULT 1,
+  unidade TEXT NOT NULL DEFAULT 'un',
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS itens_lista_idx ON itens (lista_id);

@@ -27,7 +27,16 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
 
   let resp: Response;
   try {
-    resp = await fetch(`${BASE}?${params.toString()}`, { headers: { Accept: "application/json" } });
+    // Alguns backends legados bloqueiam/filtram requisições sem User-Agent
+    // de navegador (voltam vazio em vez de erro) — buscando "feijão" direto
+    // no site funciona, mas via fetch de servidor não achava nada, então
+    // este header é a primeira hipótese testada.
+    resp = await fetch(`${BASE}?${params.toString()}`, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+    });
   } catch (e) {
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
@@ -35,16 +44,27 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
     return { produtos: [], erro: `Alabarce respondeu ${resp.status}` };
   }
 
+  const bruto = await resp.text();
   let dados: { products?: ProdutoAlabarce[] };
   try {
-    dados = await resp.json();
+    dados = JSON.parse(bruto);
   } catch (e) {
+    console.error(`[alabarce] resposta não é JSON pro termo "${termo}": ${bruto.slice(0, 300)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
 
   // A API do Alabarce não expõe campo de estoque/disponibilidade — trata
   // tudo que veio na resposta como disponível (ver briefing).
   const produtos = (dados.products ?? []).map((p) => ({ nome: p.name, preco: parsePrecoBR(p.price), disponivel: true }));
+
+  // Diagnóstico temporário: se não achou nada, loga o formato bruto da
+  // resposta pra investigar via runtime logs — a busca direto no site do
+  // Alabarce encontra resultados (confirmado manualmente), então uma busca
+  // vazia por aqui é sinal de formato de resposta ou header inesperado, não
+  // de "esse mercado não tem esse produto".
+  if (produtos.length === 0) {
+    console.error(`[alabarce] 0 produtos pro termo "${termo}" — resposta: ${bruto.slice(0, 500)}`);
+  }
 
   return { produtos };
 }

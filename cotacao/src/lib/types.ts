@@ -7,6 +7,8 @@ export interface Item {
   id: string;
   listaId: string;
   texto: string;
+  quantidade: number;
+  unidade: string;
 }
 
 export interface Config {
@@ -25,8 +27,11 @@ export interface DataModel {
 export interface ItemEncontrado {
   itemId: string;
   itemTexto: string;
+  quantidade: number;
+  unidade: string;
   produtoNome: string;
-  preco: number;
+  precoUnitario: number; // preço do produto encontrado no mercado, como veio de lá
+  subtotal: number; // precoUnitario × quantidade — o que entra na soma do total do mercado
 }
 
 export interface ResultadoMercado {

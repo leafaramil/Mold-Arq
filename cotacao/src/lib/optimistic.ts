@@ -16,7 +16,10 @@ export function applyAction(model: DataModel, action: Action): DataModel {
         itens: model.itens.filter((i) => i.listaId !== action.listaId),
       };
     case "addItem":
-      return { ...model, itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto }] };
+      return {
+        ...model,
+        itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto, quantidade: action.quantidade, unidade: action.unidade }],
+      };
     case "removerItem":
       return { ...model, itens: model.itens.filter((i) => i.id !== action.itemId) };
     case "setShibataToken":
