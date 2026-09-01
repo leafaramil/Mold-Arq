@@ -206,11 +206,6 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
         await sql`UPDATE cartoes SET vencimento = ${action.valor} WHERE id = ${action.cartaoId}`;
       }
       return;
-    case "editarValorCartao":
-      await sql`INSERT INTO cartao_overrides (cartao_id, mes, valor)
-                VALUES (${action.cartaoId}, ${action.mes}, ${action.valor})
-                ON CONFLICT (cartao_id, mes) DO UPDATE SET valor = EXCLUDED.valor`;
-      return;
     case "addParcela":
       await sql`INSERT INTO parcelas (id, descricao, parcela, atual, total, base, cartao_id)
                 VALUES (${action.parcelaId}, ${action.desc}, ${action.parcela}, ${action.atual}, ${action.total}, ${action.base}, ${action.cartaoId})

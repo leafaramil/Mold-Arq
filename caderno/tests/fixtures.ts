@@ -58,8 +58,8 @@ export const RECEITAS_INICIAIS: Receita[] = [
 ];
 
 export const CARTOES_INICIAIS: Cartao[] = [
-  { id: "cartao_rafa", nome: "Cartão Rafa", icone: "💳", fechamento: 3, fechaUltimoUtil: false, vencimento: 10, overrides: {} },
-  { id: "cartao_le", nome: "Cartão Lê", icone: "💳", fechamento: null, fechaUltimoUtil: true, vencimento: 10, overrides: {} },
+  { id: "cartao_rafa", nome: "Cartão Rafa", icone: "💳", fechamento: 3, fechaUltimoUtil: false, vencimento: 10 },
+  { id: "cartao_le", nome: "Cartão Lê", icone: "💳", fechamento: null, fechaUltimoUtil: true, vencimento: 10 },
 ];
 
 const PARCELAS_RAFA: Omit<Parcela, "id" | "base" | "cartaoId">[] = [

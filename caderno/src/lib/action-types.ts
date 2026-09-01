@@ -56,7 +56,6 @@ export type Action =
   | { type: "toggleReceita"; receitaId: string; campo: "ativa" | "reserva" }
   | { type: "updateConfig"; campo: keyof Config; valor: string | number | boolean }
   | { type: "updateCartao"; cartaoId: string; campo: "fechamento" | "vencimento"; valor: number | null }
-  | { type: "editarValorCartao"; cartaoId: string; mes: string; valor: number }
   | {
       type: "addParcela";
       parcelaId: string;

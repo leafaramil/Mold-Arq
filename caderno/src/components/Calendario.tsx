@@ -186,8 +186,8 @@ export function Calendario({
     [model.receitas, mes],
   );
   const cartoes = useMemo(
-    () => model.cartoes.map((c) => resolverCartao(c, model.parcelas, mes)),
-    [model.cartoes, model.parcelas, mes],
+    () => model.cartoes.map((c) => resolverCartao(c, model.parcelas, mes, estadosDoMes[c.id]?.gastos)),
+    [model.cartoes, model.parcelas, mes, estadosDoMes],
   );
 
   const livre = useMemo(() => calcularLivre(model, mes, hoje), [model, mes, hoje]);
@@ -262,6 +262,25 @@ export function Calendario({
         if (val <= 0) return;
         dispatch({ type: "addGasto", mes, itemId: id, valor: val, data: hojeISO(new Date()), gastoId: uid() });
         mostrarToast("Gasto registrado");
+      },
+    });
+  }
+
+  // Compra avulsa (não parcelada) num cartão — usa o mesmo "gastos" da
+  // caixinha de despesa, só que sem precisar de um "separado" antes: a
+  // fatura do cartão já é a soma de tudo isso mais os parcelamentos.
+  function addGastoCartao(id: string, nome: string) {
+    setModal({
+      tipo: "valor",
+      titulo: `Compra avulsa · ${nome}`,
+      sub: "Não parcelada — entra na fatura deste mês",
+      valorInicial: "",
+      onOk: (v) => {
+        const val = parseValorBR(v);
+        fechar();
+        if (val <= 0) return;
+        dispatch({ type: "addGasto", mes, itemId: id, valor: val, data: hojeISO(new Date()), gastoId: uid() });
+        mostrarToast("Adicionado à fatura deste mês");
       },
     });
   }
@@ -364,13 +383,6 @@ export function Calendario({
 
   function editarEstadoDireto(id: string, campo: "pago" | "separado" | "recebido" | "devolvido", v: string) {
     dispatch({ type: "editarEstado", mes, itemId: id, campo, valor: parseValorBR(v) });
-  }
-
-  // Uso do dia a dia: digitar a fatura do cartão direto neste mês, sem
-  // lançar parcela por parcela em Ajustes (isso continua existindo, pra
-  // quando tiver parcelamento de verdade).
-  function editarValorCartaoDireto(cartaoId: string, v: string) {
-    dispatch({ type: "editarValorCartao", cartaoId, mes, valor: parseValorBR(v) });
   }
 
   // "+" avulso do Calendário: coisa pontual (só existe neste mês), sem
@@ -515,51 +527,69 @@ export function Calendario({
             const e = estadoDeId(ct.id);
             const pago = e.pago != null;
             const falta = pago ? round2(ct.valor - e.pago!) : 0;
-            // Depois de marcar "pago", pode entrar mais um lançamento na mesma
-            // fatura antes do vencimento (compra do dia a dia) — a fatura sobe,
-            // mas o que já foi pago continua registrado. Trata como "quitado"
-            // só quando o pago já cobre a fatura inteira.
+            // Depois de marcar "pago", pode entrar mais uma compra avulsa na
+            // mesma fatura antes do vencimento (uso do dia a dia) — a fatura
+            // sobe, mas o que já foi pago continua registrado. Trata como
+            // "quitado" só quando o pago já cobre a fatura inteira.
             const quitado = pago && falta <= 0.004;
             const sep = e.separado != null;
             const av = avisoDe(ct.id);
+            const exp = aberto === ct.id;
+            const btnAdd: Btn2 = { t: "＋", on: () => addGastoCartao(ct.id, ct.nome) };
             const btns: Btn2[] = quitado
-              ? [{ t: "✓ pago", on: () => dispatch({ type: "desPagar", mes, itemId: ct.id }), ativo: true }]
+              ? [btnAdd, { t: "✓ pago", on: () => dispatch({ type: "desPagar", mes, itemId: ct.id }), ativo: true }]
               : pago
-                ? [{ t: "Corrigir", on: () => pagar(ct.id, ct.nome) }]
+                ? [btnAdd, { t: "Corrigir", on: () => pagar(ct.id, ct.nome) }]
                 : sep
-                  ? [{ t: "🫙", on: () => dispatch({ type: "desSeparar", mes, itemId: ct.id }), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }]
-                  : [{ t: "Separar", on: () => separar(ct.id, ct.nome, ct.valor), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }];
+                  ? [btnAdd, { t: "🫙", on: () => dispatch({ type: "desSeparar", mes, itemId: ct.id }), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }]
+                  : [btnAdd, { t: "Separar", on: () => separar(ct.id, ct.nome, ct.valor), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }];
             return (
-              <Linha
-                key={ct.id}
-                ic={ct.icone}
-                nome={ct.nome}
-                meta={
-                  quitado
-                    ? "pago"
-                    : pago
-                      ? `pago ${fmt(e.pago)} · falta ${fmt(falta)}`
-                      : sep
-                        ? "separado, esperando a fatura"
-                        : av
-                          ? textoAviso(av.dias)
-                          : ct.vencimento
-                            ? `vence dia ${ct.vencimento}`
-                            : "sem data"
-                }
-                valor={quitado ? e.pago! : pago ? falta : sep ? e.separado! : ct.valor}
-                cor={T.brick}
-                sinal="−"
-                riscado={quitado}
-                alerta={!!av && av.dias < 0 && !quitado}
-                // enquanto só parte da fatura foi paga (pago, mas não quitado), o
-                // número mostrado é o que FALTA, não o total pago — editar direto
-                // aqui confundiria os dois; corrige pelo botão "Corrigir" (mesmo
-                // fluxo de "Pagar", pede o total já pago de verdade)
-                editavel={quitado || !pago}
-                onEditar={(v) => (quitado ? editarEstadoDireto(ct.id, "pago", v) : sep ? editarEstadoDireto(ct.id, "separado", v) : editarValorCartaoDireto(ct.id, v))}
-                btns={btns}
-              />
+              <div key={ct.id}>
+                <Linha
+                  ic={ct.icone}
+                  nome={ct.nome}
+                  meta={
+                    quitado
+                      ? "pago"
+                      : pago
+                        ? `pago ${fmt(e.pago)} · falta ${fmt(falta)}`
+                        : sep
+                          ? "separado, esperando a fatura"
+                          : av
+                            ? textoAviso(av.dias)
+                            : ct.vencimento
+                              ? `vence dia ${ct.vencimento}`
+                              : "sem data"
+                  }
+                  valor={quitado ? e.pago! : pago ? falta : sep ? e.separado! : ct.valor}
+                  cor={T.brick}
+                  sinal="−"
+                  riscado={quitado}
+                  alerta={!!av && av.dias < 0 && !quitado}
+                  // só edita direto quando o número mostrado é exatamente um
+                  // valor gravado (pago total ou separado) — "falta" e o total
+                  // em aberto (parcelas + avulsos) se corrigem pelos botões
+                  editavel={quitado || sep}
+                  onEditar={(v) => (quitado ? editarEstadoDireto(ct.id, "pago", v) : editarEstadoDireto(ct.id, "separado", v))}
+                  btns={btns}
+                  onNome={e.gastos.length > 0 ? () => setAberto(exp ? null : ct.id) : undefined}
+                />
+                {exp && e.gastos.length > 0 && (
+                  <div style={{ padding: "4px 0 10px 24px" }}>
+                    {e.gastos.map((g) => (
+                      <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10.5, color: T.inkSoft, padding: "3px 0" }}>
+                        <span>{g.data} · avulso</span>
+                        <span style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                          <b>{fmt(g.valor)}</b>
+                          <span onClick={() => dispatch({ type: "delGasto", mes, itemId: ct.id, gastoId: g.id })} style={{ cursor: "pointer", color: T.brick }}>
+                            ✕
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
           {ds.map((d) => {

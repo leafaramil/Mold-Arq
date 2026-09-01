@@ -206,11 +206,6 @@ export function applyAction(model: DataModel, action: Action): DataModel {
       return { ...model, config: { ...model.config, [action.campo]: action.valor } };
     case "updateCartao":
       return { ...model, cartoes: model.cartoes.map((c) => (c.id === action.cartaoId ? { ...c, [action.campo]: action.valor } : c)) };
-    case "editarValorCartao":
-      return {
-        ...model,
-        cartoes: model.cartoes.map((c) => (c.id !== action.cartaoId ? c : { ...c, overrides: { ...c.overrides, [action.mes]: action.valor } })),
-      };
     case "addParcela":
       return {
         ...model,

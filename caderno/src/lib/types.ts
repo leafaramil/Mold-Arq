@@ -58,10 +58,6 @@ export interface Cartao {
   fechamento: number | null;
   fechaUltimoUtil: boolean;
   vencimento: number | null;
-  // valor da fatura digitado direto num mês (uso do dia a dia, sem lançar
-  // parcela por parcela) — quando presente, substitui o total calculado a
-  // partir de `parcelas` só naquele mês (mesma ideia do override de despesa)
-  overrides: Record<string, number>;
 }
 
 export interface ResolvedCartao extends Cartao {
