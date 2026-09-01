@@ -6,9 +6,8 @@ import { buscarSemar } from "@/lib/mercados/semar";
 import { buscarAlabarce } from "@/lib/mercados/alabarce";
 import { escolherMatches, extrairTermoBusca, type MercadoId } from "@/lib/matching";
 import { mapComConcorrencia } from "@/lib/concorrencia";
-import { round2 } from "@/lib/format";
 import type { Item } from "@/lib/types";
-import type { ItemEncontrado, ResultadoCotacao, ResultadoMercado } from "@/lib/types";
+import type { ItemNoMercado, ResultadoCotacao, ResultadoMercado } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,15 +16,13 @@ const CONCORRENCIA = 4;
 const NOMES: Record<MercadoId, string> = { shibata: "Shibata", semar: "Semar", alabarce: "Alabarce" };
 
 interface AcumuladorMercado {
-  total: number;
-  encontrados: ItemEncontrado[];
-  naoEncontrados: string[];
+  itens: ItemNoMercado[];
   tokenExpirado: boolean;
   erro: string | null;
 }
 
 function acumuladorVazio(): AcumuladorMercado {
-  return { total: 0, encontrados: [], naoEncontrados: [], tokenExpirado: false, erro: null };
+  return { itens: [], tokenExpirado: false, erro: null };
 }
 
 export async function POST(req: Request) {
@@ -53,6 +50,16 @@ export async function POST(req: Request) {
     // próximos itens da mesma cotação — evita 20-30 chamadas 403 em série.
     let shibataToken = token;
 
+    // mapComConcorrencia processa vários itens ao mesmo tempo (ver o
+    // próprio arquivo) — a ordem de chegada dos resultados não é garantida,
+    // então cada mercado guarda seus itens num Map por itemId e só monta a
+    // lista final (na ordem da lista de compras) depois que tudo terminou.
+    const itensPorMercado: Record<MercadoId, Map<string, ItemNoMercado>> = {
+      shibata: new Map(),
+      semar: new Map(),
+      alabarce: new Map(),
+    };
+
     await mapComConcorrencia(itens, CONCORRENCIA, async (item: Item) => {
       const termo = extrairTermoBusca(item.texto);
 
@@ -74,23 +81,13 @@ export async function POST(req: Request) {
 
       const buscas = { shibata: shibataRes, semar: semarRes, alabarce: alabarceRes };
       for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
-        const acc = acumuladores[mercadoId];
-        const idx = escolha[mercadoId];
-        if (idx == null) {
-          acc.naoEncontrados.push(item.texto);
-          continue;
-        }
-        const produto = buscas[mercadoId].produtos[idx];
-        const subtotal = round2(produto.preco * item.quantidade);
-        acc.total = round2(acc.total + subtotal);
-        acc.encontrados.push({
+        itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,
           itemTexto: item.texto,
           quantidade: item.quantidade,
           unidade: item.unidade,
-          produtoNome: produto.nome,
-          precoUnitario: produto.preco,
-          subtotal,
+          candidatos: buscas[mercadoId].produtos,
+          escolhaIndex: escolha[mercadoId],
         });
       }
     });
@@ -99,12 +96,11 @@ export async function POST(req: Request) {
       geradoEm: new Date().toISOString(),
       mercados: (Object.keys(NOMES) as MercadoId[]).map((id): ResultadoMercado => {
         const acc = acumuladores[id];
+        const mapa = itensPorMercado[id];
         return {
           mercadoId: id,
           mercadoNome: NOMES[id],
-          total: acc.total,
-          encontrados: acc.encontrados,
-          naoEncontrados: acc.naoEncontrados,
+          itens: itens.map((item) => mapa.get(item.id)!),
           ...(id === "shibata" && acc.tokenExpirado ? { tokenExpirado: true } : {}),
           ...(acc.erro ? { erro: acc.erro } : {}),
         };

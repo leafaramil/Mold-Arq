@@ -24,22 +24,30 @@ export interface DataModel {
 // --- resultado de uma cotação (POST /api/cotar) — nunca persistido, só
 // trafega entre servidor e cliente na hora do clique em "Cotar" ---
 
-export interface ItemEncontrado {
+// Um produto encontrado na busca daquele mercado pra aquele item — nem
+// todo candidato vira o escolhido; a lista inteira viaja pro cliente pra
+// dar pra trocar a escolha da IA sem precisar buscar de novo.
+export interface CandidatoProduto {
+  nome: string;
+  preco: number;
+  disponivel: boolean;
+}
+
+export interface ItemNoMercado {
   itemId: string;
   itemTexto: string;
   quantidade: number;
   unidade: string;
-  produtoNome: string;
-  precoUnitario: number; // preço do produto encontrado no mercado, como veio de lá
-  subtotal: number; // precoUnitario × quantidade — o que entra na soma do total do mercado
+  candidatos: CandidatoProduto[];
+  // índice em `candidatos` escolhido (pela IA, ou pelo usuário depois de
+  // trocar) — null quando nenhum candidato é um match razoável.
+  escolhaIndex: number | null;
 }
 
 export interface ResultadoMercado {
   mercadoId: "shibata" | "semar" | "alabarce";
   mercadoNome: string;
-  total: number;
-  encontrados: ItemEncontrado[];
-  naoEncontrados: string[]; // itemTexto dos itens sem match nesse mercado
+  itens: ItemNoMercado[]; // um por item da listinha, achado ou não
   tokenExpirado?: boolean; // hoje só o Shibata usa isso
   erro?: string; // erro de rede/parse inesperado, distinto de "não encontrado"
 }
