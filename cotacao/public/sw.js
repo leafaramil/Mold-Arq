@@ -5,7 +5,7 @@
 //   duas fontes de verdade.
 // - tudo o mais (JS/CSS/fontes/ícones do Next): cache-first, já que o Next
 //   coloca hash no nome do arquivo — o mesmo nome nunca muda de conteúdo.
-const CACHE = "cotacao-v1";
+const CACHE = "cotacao-v2"; // v2: trocou o ícone (carrinho de compras) — força os clientes a buscar de novo
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
