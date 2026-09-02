@@ -537,11 +537,20 @@ describe("saldo entre meses", () => {
     expect(r.livre).toBe(200);
   });
 
-  it("com histórico, o livre do mês anterior passa para o saldo inicial do mês seguinte", () => {
+  it("mês futuro (ainda não chegou) nunca herda saldo, fica zerado até a virada", () => {
     const model = modeloInicial();
     setEstado(model, MES, "space30", { recebido: 4500 });
-    const setembro = calcularLivre(model, MES, HOJE);
     const outubro = calcularLivre(model, "2026-10", HOJE);
+    expect(outubro.saldoInicial).toBe(0);
+    expect(outubro.livre).toBe(0);
+  });
+
+  it("com histórico, o livre do mês anterior passa para o saldo inicial do mês seguinte assim que a virada acontece", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "space30", { recebido: 4500 });
+    const hojeOutubro = new Date(2026, 9, 1); // 1º de outubro: outubro já chegou
+    const setembro = calcularLivre(model, MES, hojeOutubro);
+    const outubro = calcularLivre(model, "2026-10", hojeOutubro);
     expect(outubro.saldoInicial).toBe(setembro.livre);
   });
 });
