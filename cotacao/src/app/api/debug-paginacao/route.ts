@@ -36,14 +36,34 @@ export async function GET() {
   const atacadaoPagina2Numerica = await tenta(urlAtacadao("20"), { Accept: "application/json" });
 
   const uaBrowser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-  const nagumoCandidatos = [
-    "https://www.nagumo.com.br/on/demandware.store/Sites-Nagumo-Site/pt_BR/Search-UpdateGrid?q=arroz&start=20&sz=20",
-    "https://www.nagumo.com.br/busca?q=arroz&start=20&sz=20&search-button=&lang=null",
-  ];
-  const nagumoResultados = [];
-  for (const url of nagumoCandidatos) {
-    nagumoResultados.push(await tenta(url, { Accept: "text/html", "User-Agent": uaBrowser }));
+  // A Search-UpdateGrid respondeu 200 com JSON, mas só productIds (sem
+  // nome/preço) nos primeiros ~4000 caracteres — investiga se o resto do
+  // corpo (89KB) tem os dados completos em algum outro campo, procurando
+  // por "search-card-grid" (o mesmo formato embutido da página normal) ou
+  // por "productName"/"price" soltos.
+  const urlUpdateGrid = "https://www.nagumo.com.br/on/demandware.store/Sites-Nagumo-Site/pt_BR/Search-UpdateGrid?q=arroz&start=20&sz=20";
+  let updateGridInspecao: Record<string, unknown> = { url: urlUpdateGrid };
+  try {
+    const resp = await fetch(urlUpdateGrid, { headers: { Accept: "application/json", "User-Agent": uaBrowser } });
+    const texto = await resp.text();
+    const idxGrid = texto.indexOf("search-card-grid");
+    const idxProductName = texto.indexOf("productName");
+    const idxPrice = texto.search(/"price"|"sales"/);
+    updateGridInspecao = {
+      url: urlUpdateGrid,
+      status: resp.status,
+      tamanhoTotal: texto.length,
+      contemSearchCardGrid: idxGrid !== -1,
+      trechoSearchCardGrid: idxGrid !== -1 ? texto.slice(idxGrid, idxGrid + 3000) : null,
+      contemProductName: idxProductName !== -1,
+      trechoProductName: idxProductName !== -1 ? texto.slice(Math.max(0, idxProductName - 200), idxProductName + 2000) : null,
+      contemPrice: idxPrice !== -1,
+      trechoPrice: idxPrice !== -1 ? texto.slice(Math.max(0, idxPrice - 200), idxPrice + 2000) : null,
+      fimDoCorpo: texto.slice(-3000),
+    };
+  } catch (e) {
+    updateGridInspecao = { url: urlUpdateGrid, erro: e instanceof Error ? e.message : String(e) };
   }
 
-  return NextResponse.json({ atacadaoPagina1, atacadaoPagina2Numerica, nagumoResultados });
+  return NextResponse.json({ atacadaoPagina1, atacadaoPagina2Numerica, updateGridInspecao });
 }
