@@ -26,8 +26,9 @@ describe("escolherMatches", () => {
       semar: [],
       alabarce: [],
       atacadao: [],
+      nagumo: [],
     });
-    expect(escolha).toEqual({ shibata: null, semar: null, alabarce: null, atacadao: null });
+    expect(escolha).toEqual({ shibata: null, semar: null, alabarce: null, atacadao: null, nagumo: null });
     expect(tokensEntrada).toBe(0);
     expect(tokensSaida).toBe(0);
   });

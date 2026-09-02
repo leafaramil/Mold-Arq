@@ -5,6 +5,7 @@ import { buscarShibata } from "@/lib/mercados/shibata";
 import { buscarSemar } from "@/lib/mercados/semar";
 import { buscarAlabarce } from "@/lib/mercados/alabarce";
 import { buscarAtacadao } from "@/lib/mercados/atacadao";
+import { buscarNagumo } from "@/lib/mercados/nagumo";
 import { escolherMatches, extrairTermoBusca, type MercadoId } from "@/lib/matching";
 import { mapComConcorrencia } from "@/lib/concorrencia";
 import type { Item } from "@/lib/types";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const CONCORRENCIA = 4;
-const NOMES: Record<MercadoId, string> = { shibata: "Shibata", semar: "Semar", alabarce: "Alabarce", atacadao: "Atacadão" };
+const NOMES: Record<MercadoId, string> = { shibata: "Shibata", semar: "Semar", alabarce: "Alabarce", atacadao: "Atacadão", nagumo: "Nagumo" };
 
 interface AcumuladorMercado {
   itens: ItemNoMercado[];
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       semar: acumuladorVazio(),
       alabarce: acumuladorVazio(),
       atacadao: acumuladorVazio(),
+      nagumo: acumuladorVazio(),
     };
 
     // Uma vez que o token do Shibata falha, não adianta insistir pros
@@ -61,16 +63,18 @@ export async function POST(req: Request) {
       semar: new Map(),
       alabarce: new Map(),
       atacadao: new Map(),
+      nagumo: new Map(),
     };
 
     await mapComConcorrencia(itens, CONCORRENCIA, async (item: Item) => {
       const termo = extrairTermoBusca(item.texto);
 
-      const [shibataRes, semarRes, alabarceRes, atacadaoRes] = await Promise.all([
+      const [shibataRes, semarRes, alabarceRes, atacadaoRes, nagumoRes] = await Promise.all([
         buscarShibata(termo, shibataToken),
         buscarSemar(termo),
         buscarAlabarce(termo),
         buscarAtacadao(termo),
+        buscarNagumo(termo),
       ]);
 
       if (shibataRes.tokenExpirado) {
@@ -81,15 +85,17 @@ export async function POST(req: Request) {
       if (semarRes.erro) acumuladores.semar.erro = semarRes.erro;
       if (alabarceRes.erro) acumuladores.alabarce.erro = alabarceRes.erro;
       if (atacadaoRes.erro) acumuladores.atacadao.erro = atacadaoRes.erro;
+      if (nagumoRes.erro) acumuladores.nagumo.erro = nagumoRes.erro;
 
       const { escolha } = await escolherMatches(item.texto, {
         shibata: shibataRes.produtos,
         semar: semarRes.produtos,
         alabarce: alabarceRes.produtos,
         atacadao: atacadaoRes.produtos,
+        nagumo: nagumoRes.produtos,
       });
 
-      const buscas = { shibata: shibataRes, semar: semarRes, alabarce: alabarceRes, atacadao: atacadaoRes };
+      const buscas = { shibata: shibataRes, semar: semarRes, alabarce: alabarceRes, atacadao: atacadaoRes, nagumo: nagumoRes };
       for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
         itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,

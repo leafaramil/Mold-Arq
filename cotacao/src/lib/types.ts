@@ -47,7 +47,7 @@ export interface ItemNoMercado {
 }
 
 export interface ResultadoMercado {
-  mercadoId: "shibata" | "semar" | "alabarce" | "atacadao";
+  mercadoId: "shibata" | "semar" | "alabarce" | "atacadao" | "nagumo";
   mercadoNome: string;
   itens: ItemNoMercado[]; // um por item da listinha, achado ou não
   tokenExpirado?: boolean; // hoje só o Shibata usa isso

@@ -13,7 +13,7 @@
 import { chamarAnthropicComFerramenta, type AnthropicTool } from "./anthropic-server";
 import type { ProdutoEncontrado } from "./mercados/types";
 
-export type MercadoId = "shibata" | "semar" | "alabarce" | "atacadao";
+export type MercadoId = "shibata" | "semar" | "alabarce" | "atacadao" | "nagumo";
 
 const SEM_MATCH = -1;
 
@@ -40,6 +40,7 @@ interface CandidatosPorMercado {
   semar: ProdutoEncontrado[];
   alabarce: ProdutoEncontrado[];
   atacadao: ProdutoEncontrado[];
+  nagumo: ProdutoEncontrado[];
 }
 
 export interface MatchEscolhido {
@@ -47,6 +48,7 @@ export interface MatchEscolhido {
   semar: number | null;
   alabarce: number | null;
   atacadao: number | null;
+  nagumo: number | null;
 }
 
 const TOOL: AnthropicTool = {
@@ -62,8 +64,9 @@ const TOOL: AnthropicTool = {
       semar: { type: "integer", description: `Índice (a partir de 0) do candidato do Semar, ou ${SEM_MATCH} se nenhum servir.` },
       alabarce: { type: "integer", description: `Índice (a partir de 0) do candidato do Alabarce, ou ${SEM_MATCH} se nenhum servir.` },
       atacadao: { type: "integer", description: `Índice (a partir de 0) do candidato do Atacadão, ou ${SEM_MATCH} se nenhum servir.` },
+      nagumo: { type: "integer", description: `Índice (a partir de 0) do candidato do Nagumo, ou ${SEM_MATCH} se nenhum servir.` },
     },
-    required: ["shibata", "semar", "alabarce", "atacadao"],
+    required: ["shibata", "semar", "alabarce", "atacadao", "nagumo"],
   },
 };
 
@@ -80,11 +83,11 @@ function indiceValido(i: number | undefined, tamanho: number): number | null {
 
 /** Sem candidato nenhum nos 3 mercados, nem vale a pena chamar a IA. */
 function semCandidatos(c: CandidatosPorMercado): boolean {
-  return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0 && c.atacadao.length === 0;
+  return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0 && c.atacadao.length === 0 && c.nagumo.length === 0;
 }
 
 export async function escolherMatches(itemTexto: string, candidatos: CandidatosPorMercado): Promise<{ escolha: MatchEscolhido; tokensEntrada: number; tokensSaida: number }> {
-  const vazio: MatchEscolhido = { shibata: null, semar: null, alabarce: null, atacadao: null };
+  const vazio: MatchEscolhido = { shibata: null, semar: null, alabarce: null, atacadao: null, nagumo: null };
   if (semCandidatos(candidatos)) {
     return { escolha: vazio, tokensEntrada: 0, tokensSaida: 0 };
   }
@@ -102,6 +105,7 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
     listarCandidatos("Semar", candidatos.semar),
     listarCandidatos("Alabarce", candidatos.alabarce),
     listarCandidatos("Atacadão", candidatos.atacadao),
+    listarCandidatos("Nagumo", candidatos.nagumo),
   ].join("\n");
 
   const resposta = await chamarAnthropicComFerramenta(system, mensagem, TOOL);
@@ -112,6 +116,7 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
     semar: indiceValido(input.semar as number | undefined, candidatos.semar.length),
     alabarce: indiceValido(input.alabarce as number | undefined, candidatos.alabarce.length),
     atacadao: indiceValido(input.atacadao as number | undefined, candidatos.atacadao.length),
+    nagumo: indiceValido(input.nagumo as number | undefined, candidatos.nagumo.length),
   };
 
   return { escolha, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida };
