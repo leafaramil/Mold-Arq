@@ -5,6 +5,7 @@ describe("sugerirUnidade", () => {
   it("sugere kg pra carnes e hortifruti", () => {
     expect(sugerirUnidade("carne moída")).toBe("kg");
     expect(sugerirUnidade("Tomate")).toBe("kg");
+    expect(sugerirUnidade("alho")).toBe("kg");
   });
 
   it("sugere dúzia pra ovos", () => {

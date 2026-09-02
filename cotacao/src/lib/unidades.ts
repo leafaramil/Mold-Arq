@@ -65,6 +65,7 @@ const PALAVRA_UNIDADE: Record<string, Unidade> = {
   uva: "kg",
   abacaxi: "kg",
   mamao: "kg",
+  alho: "kg",
   // dúzia
   ovo: "dz",
   ovos: "dz",
