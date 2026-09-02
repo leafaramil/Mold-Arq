@@ -1,6 +1,18 @@
 // Dicionário simples de sugestão de unidade a partir do texto do item —
 // heurística por palavra-chave, sem chamada de IA (é só um valor inicial
 // pro campo, a pessoa sempre pode trocar antes de adicionar o item).
+//
+// kg/g/l/ml só fazem sentido pra item vendido a granel/peso solto (açougue,
+// hortifruti) — nesses casos o preço encontrado no mercado já É um preço
+// por kg/L, e a quantidade multiplica esse preço corretamente (ex: 1,5kg de
+// carne = 1,5 × preço/kg). Para item vendido em embalagem fechada (garrafa,
+// caixa, lata, pacote), o preço encontrado é o preço de UMA embalagem
+// inteira — multiplicar por "quantos ml/g tem a embalagem" dá um total
+// absurdo (ex: azeite 500ml × preço da garrafa = preço × 500). Por isso
+// líquidos comprados em garrafa/caixa (leite, óleo, água, refrigerante,
+// suco) NÃO entram nesse dicionário como "l" — ficam em "un" por padrão,
+// onde a quantidade significa "quantas embalagens comprar" (quase sempre
+// 1, 2, 3...), não o volume de uma embalagem.
 export type Unidade = "un" | "kg" | "g" | "l" | "ml" | "dz" | "pct";
 
 export const UNIDADES: { valor: Unidade; rotulo: string }[] = [
@@ -56,12 +68,9 @@ const PALAVRA_UNIDADE: Record<string, Unidade> = {
   // dúzia
   ovo: "dz",
   ovos: "dz",
-  // líquidos — comumente descritos em litros
-  leite: "l",
-  oleo: "l",
-  agua: "l",
-  refrigerante: "l",
-  suco: "l",
+  // líquidos (leite, óleo, água, refrigerante, suco) ficam de fora de
+  // propósito — são vendidos em embalagem fechada (garrafa/caixa/lata),
+  // não a granel, então o padrão "un" é o correto (ver comentário acima).
 };
 
 const removerAcentos = (s: string): string => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
