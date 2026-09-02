@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeHtmlEntities, extrairProdutosDoHtml } from "../src/lib/mercados/nagumo";
+import { decodeHtmlEntities, extrairProdutosDoHtml, extrairProdutosDoUpdateGrid } from "../src/lib/mercados/nagumo";
 
 describe("decodeHtmlEntities", () => {
   it("decodifica entidades nomeadas comuns em português", () => {
@@ -37,5 +37,26 @@ describe("extrairProdutosDoHtml", () => {
   it("propaga erro quando o atributo existe mas o JSON está malformado", () => {
     const html = `<search-card-grid products="{isso nao e json valido">`;
     expect(() => extrairProdutosDoHtml(html)).toThrow();
+  });
+});
+
+describe("extrairProdutosDoUpdateGrid", () => {
+  it("extrai produtos e total do formato JSON solto da Search-UpdateGrid", () => {
+    const json = JSON.stringify({
+      productsSearchResult: [{ productName: "Arroz Camil 5Kg", brand: "CAMIL", price: { sales: { value: 21.49 } }, available: true }],
+      count: 131,
+    });
+    expect(extrairProdutosDoUpdateGrid(json)).toEqual({
+      produtos: [{ productName: "Arroz Camil 5Kg", brand: "CAMIL", price: { sales: { value: 21.49 } }, available: true }],
+      total: 131,
+    });
+  });
+
+  it("devolve lista vazia e total 0 quando os campos não vêm", () => {
+    expect(extrairProdutosDoUpdateGrid("{}")).toEqual({ produtos: [], total: 0 });
+  });
+
+  it("propaga erro quando o JSON está malformado", () => {
+    expect(() => extrairProdutosDoUpdateGrid("{isso nao e json valido")).toThrow();
   });
 });

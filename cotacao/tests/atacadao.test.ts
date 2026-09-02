@@ -19,4 +19,14 @@ describe("montarUrlAtacadao", () => {
     expect(channel.seller).toBe("atacadaobr940");
     expect(channel.regionId).toBe("U1cjYXRhY2FkYW9icjkOMA==");
   });
+
+  it("usa after=0 por padrão, mas aceita cursor explícito pra paginação", () => {
+    const urlPadrao = montarUrlAtacadao("arroz");
+    const variaveisPadrao = JSON.parse(decodeURIComponent(new URL(urlPadrao).searchParams.get("variables")!));
+    expect(variaveisPadrao.after).toBe("0");
+
+    const urlPagina2 = montarUrlAtacadao("arroz", "20");
+    const variaveisPagina2 = JSON.parse(decodeURIComponent(new URL(urlPagina2).searchParams.get("variables")!));
+    expect(variaveisPagina2.after).toBe("20");
+  });
 });
