@@ -37,9 +37,8 @@ export async function GET() {
 
   const uaBrowser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
   const nagumoCandidatos = [
-    "https://www.nagumo.com.br/busca/Search-UpdateGrid?q=arroz&start=20&sz=20",
-    "https://www.nagumo.com.br/on/demandware.store/Sites-nagumo-Site/pt_BR/Search-UpdateGrid?q=arroz&start=20&sz=20",
-    "https://www.nagumo.com.br/Search-UpdateGrid?q=arroz&start=20&sz=20",
+    "https://www.nagumo.com.br/on/demandware.store/Sites-Nagumo-Site/pt_BR/Search-UpdateGrid?q=arroz&start=20&sz=20",
+    "https://www.nagumo.com.br/busca?q=arroz&start=20&sz=20&search-button=&lang=null",
   ];
   const nagumoResultados = [];
   for (const url of nagumoCandidatos) {
