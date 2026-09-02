@@ -429,10 +429,18 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     }, 0),
   );
 
+  // Um mês que ainda não chegou (posterior ao mês corrente de verdade) nunca
+  // herda saldo nenhum, nem o do mês anterior nem o inicial configurado —
+  // fica em zero até a virada acontecer de fato. Evita mostrar uma prévia
+  // (ou pior, o saldo inicial de bootstrap reaparecendo em todo mês futuro
+  // sem histórico) antes da hora.
   const mesAnterior = mesVizinho(mesRef, -1);
-  const saldoInicial = temHistorico(model, mesAnterior)
-    ? calcularLivre(model, mesAnterior, hoje).livre
-    : model.config.saldoInicial;
+  const saldoInicial =
+    mesRef > mesRefDe(hoje)
+      ? 0
+      : temHistorico(model, mesAnterior)
+        ? calcularLivre(model, mesAnterior, hoje).livre
+        : model.config.saldoInicial;
 
   const livre = round2(
     saldoInicial +

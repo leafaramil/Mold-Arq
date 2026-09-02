@@ -88,9 +88,15 @@ describe("Cenário 5 — ZUL", () => {
     const depois = calcularLivre(model, MES, HOJE);
     expect(depois.livre).toBe(-34.5); // gasto não mexe no livre
 
+    // outubro ainda não chegou (hoje é 1º de setembro): fica zerado até a virada
     const outubro = calcularLivre(model, "2026-10", HOJE);
     expect(outubro.gastoZulMes).toBe(0); // outubro não tem recarga própria
-    expect(outubro.saldoInicial).toBe(depois.livre); // saldo do mês passa para o seguinte
+    expect(outubro.saldoInicial).toBe(0);
+
+    // quando outubro de fato chega, o saldo de setembro passa para o seguinte
+    const hojeOutubro = new Date(2026, 9, 1);
+    const outubroChegou = calcularLivre(model, "2026-10", hojeOutubro);
+    expect(outubroChegou.saldoInicial).toBe(depois.livre);
   });
 });
 
