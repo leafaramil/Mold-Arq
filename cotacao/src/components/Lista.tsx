@@ -190,9 +190,11 @@ export function Lista({
           </button>
         </div>
         <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 6 }}>
-          {unidade === "kg" || unidade === "g" || unidade === "l" || unidade === "ml"
-            ? "Peso/volume desejado — só pra item vendido a granel (açougue, hortifruti). Ex: 1,5 kg de carne."
-            : "Quantas embalagens/unidades comprar — pra item de embalagem fechada, deixe 1 (uma garrafa, um pacote…)."}
+          {unidade === "kg"
+            ? "Peso desejado — o app já converte o preço de cada mercado pra \"por kg\" antes de multiplicar, então pacotes de tamanhos diferentes (ex: 100g vs 1kg) são comparados de forma justa. Ex: 1,5 kg de carne."
+            : unidade === "g" || unidade === "l" || unidade === "ml"
+              ? "Peso/volume desejado — só pra item vendido a granel (açougue, hortifruti)."
+              : "Quantas embalagens/unidades comprar — pra item de embalagem fechada, deixe 1 (uma garrafa, um pacote…)."}
         </div>
       </Card>
 

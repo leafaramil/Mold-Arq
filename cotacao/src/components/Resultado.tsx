@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { T, fontSerif } from "@/lib/theme";
 import { fmt, round2 } from "@/lib/format";
 import { rotuloUnidade } from "@/lib/unidades";
+import { precoPorKg } from "@/lib/peso";
 import type { Action } from "@/lib/action-types";
 import type { MercadoId } from "@/lib/matching";
-import type { ResultadoCotacao } from "@/lib/types";
+import type { CandidatoProduto, ItemNoMercado, ResultadoCotacao } from "@/lib/types";
 import { Btn, Card, Topo } from "./ui";
 
 // mercadoId+itemId -> índice do candidato escolhido (null = "não encontrado"/nenhum serve).
@@ -17,6 +18,21 @@ type Escolhas = Record<string, number | null>;
 
 function chave(mercadoId: string, itemId: string): string {
   return `${mercadoId}:${itemId}`;
+}
+
+// Item "kg" (vendido a peso solto — açougue, hortifruti) precisa normalizar
+// o preço encontrado pra "por kg" antes de multiplicar: cada mercado pode
+// listar o produto num pacote de tamanho diferente (100g, 1kg, "Kg" solto
+// vendido a peso variável...), então o preço bruto não é comparável entre
+// mercados. Quando não dá pra identificar o peso no nome do produto, cai
+// pro comportamento antigo (preço bruto × quantidade) com um aviso na tela.
+function calcularSubtotal(item: ItemNoMercado, candidato: CandidatoProduto): { valor: number; pesoNaoIdentificado: boolean } {
+  if (item.unidade === "kg") {
+    const porKg = precoPorKg(candidato.preco, candidato.nome);
+    if (porKg != null) return { valor: round2(porKg * item.quantidade), pesoNaoIdentificado: false };
+    return { valor: round2(candidato.preco * item.quantidade), pesoNaoIdentificado: true };
+  }
+  return { valor: round2(candidato.preco * item.quantidade), pesoNaoIdentificado: false };
 }
 
 export function Resultado({
@@ -68,7 +84,7 @@ export function Resultado({
       let total = 0;
       for (const item of m.itens) {
         const idx = escolhas[chave(m.mercadoId, item.itemId)];
-        if (idx != null) total = round2(total + item.candidatos[idx].preco * item.quantidade);
+        if (idx != null) total = round2(total + calcularSubtotal(item, item.candidatos[idx]).valor);
       }
       t[m.mercadoId] = total;
     }
@@ -125,6 +141,7 @@ export function Resultado({
                 const k = chave(m.mercadoId, item.itemId);
                 const idx = escolhas[k];
                 const aberto = pickerAberto === k;
+                const sub = idx != null ? calcularSubtotal(item, item.candidatos[idx]) : null;
                 return (
                   <div key={item.itemId} style={{ marginBottom: 4 }}>
                     <div
@@ -135,17 +152,21 @@ export function Resultado({
                         <div style={{ color: idx == null ? T.inkSoft : T.ink, textDecoration: idx == null ? "line-through" : "none" }}>
                           {idx == null ? item.itemTexto : item.candidatos[idx].nome}
                         </div>
-                        {idx != null && (
+                        {idx != null && sub && (
                           <div style={{ color: T.inkSoft, fontSize: 10.5 }}>
-                            {item.quantidade} {rotuloUnidade(item.unidade)} × {fmt(item.candidatos[idx].preco)}
+                            {item.unidade === "kg"
+                              ? sub.pesoNaoIdentificado
+                                ? `${item.quantidade} ${rotuloUnidade(item.unidade)} × ${fmt(item.candidatos[idx].preco)} (peso não identificado — preço bruto)`
+                                : `${item.quantidade} kg × ${fmt(sub.valor / item.quantidade)}/kg (normalizado)`
+                              : `${item.quantidade} ${rotuloUnidade(item.unidade)} × ${fmt(item.candidatos[idx].preco)}`}
                           </div>
                         )}
                       </div>
                       <div style={{ whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
-                        {idx == null ? (
+                        {idx == null || !sub ? (
                           <span style={{ color: T.brick, fontSize: 11 }}>não encontrado</span>
                         ) : (
-                          <span style={{ color: T.ink, fontWeight: 700 }}>{fmt(round2(item.candidatos[idx].preco * item.quantidade))}</span>
+                          <span style={{ color: T.ink, fontWeight: 700 }}>{fmt(sub.valor)}</span>
                         )}
                         <span style={{ color: T.inkSoft, fontSize: 10 }}>{aberto ? "▲" : "▼"}</span>
                       </div>
@@ -154,7 +175,9 @@ export function Resultado({
                     {aberto && (
                       <div style={{ background: T.paper, borderRadius: 10, padding: 8, marginBottom: 6 }}>
                         {item.candidatos.length === 0 && <div style={{ fontSize: 11.5, color: T.inkSoft, padding: "4px 2px" }}>Nenhum resultado de busca nesse mercado.</div>}
-                        {item.candidatos.map((c, i) => (
+                        {item.candidatos.map((c, i) => {
+                          const porKg = item.unidade === "kg" ? precoPorKg(c.preco, c.nome) : null;
+                          return (
                           <div
                             key={i}
                             onClick={() => escolher(m.mercadoId, item.itemId, i)}
@@ -171,9 +194,13 @@ export function Resultado({
                             }}
                           >
                             <div>{c.nome}</div>
-                            <div style={{ whiteSpace: "nowrap", fontWeight: idx === i ? 700 : 400 }}>{fmt(c.preco)}</div>
+                            <div style={{ whiteSpace: "nowrap", fontWeight: idx === i ? 700 : 400 }}>
+                              {fmt(c.preco)}
+                              {porKg != null && <span style={{ color: T.inkSoft, fontWeight: 400 }}> ({fmt(porKg)}/kg)</span>}
+                            </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         <div
                           onClick={() => escolher(m.mercadoId, item.itemId, null)}
                           style={{ padding: "7px 6px", fontSize: 11.5, borderRadius: 8, cursor: "pointer", color: T.brick, background: idx == null ? T.brickSoft : "transparent" }}
