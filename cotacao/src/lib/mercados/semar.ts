@@ -12,16 +12,13 @@ interface HitSemar {
 }
 
 export async function buscarSemar(termo: string): Promise<BuscaMercado> {
-  const params = new URLSearchParams({
-    brands: "",
-    categories: "",
-    tags: "",
-    size: "200",
-    from: "0",
-    search: termo,
-    sortField: "_score",
-    sortOrder: "desc",
-  });
+  // Investigado em produção (rota de diagnóstico temporária, já removida):
+  // mandar qualquer parâmetro extra junto de `search` (size, from,
+  // sortField, sortOrder, brands/categories/tags vazios...) faz o backend
+  // do Semar ignorar o termo buscado e devolver um catálogo genérico de
+  // ~22 mil itens sem relação nenhuma com a busca. Só `search` sozinho
+  // devolve resultado de busca de verdade.
+  const params = new URLSearchParams({ search: termo });
 
   let resp: Response;
   try {
@@ -47,12 +44,9 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
 
   const hits = dados.hits ?? [];
 
-  // Visto em produção: o Semar às vezes ignora o `size=200` pedido e devolve
-  // uma lista de "sugestões" genéricas (produtos sem relação com o termo
-  // buscado) repetida milhares de vezes, sempre com preço 0 e indisponível —
-  // não é resultado de busca de verdade. Preço 0 nunca é um preço real de
-  // mercado, então filtra essas entradas; o teto extra é só uma blindagem
-  // (o `size` pedido já devia bastar) pra não inflar o prompt da IA.
+  // Preço 0 nunca é um preço real de mercado — filtra por segurança. O teto
+  // de 200 é só blindagem (sem `size` no request, não há como pedir um
+  // limite ao Semar) pra nunca inflar demais o prompt da IA.
   const produtos = hits
     .map((h) => {
       // `promotionalPrice` vem 0 (não null/undefined) quando não há promoção
