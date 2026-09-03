@@ -45,16 +45,27 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
 
-  const produtos = (dados.hits ?? []).map((h) => {
-    const preco = h.pricing?.promotionalPrice ?? h.pricing?.price ?? 0;
-    return { nome: h.name, preco, disponivel: (h.quantity?.inStock ?? 0) > 0 };
-  });
+  const hits = dados.hits ?? [];
 
-  // Diagnóstico: 0 produtos pode ser genuíno (termo sem resultado), mas
-  // também pode indicar mudança de formato de resposta — loga o bruto pra
-  // investigar via runtime logs (mesmo padrão do Alabarce).
-  if (produtos.length === 0) {
-    console.error(`[semar] 0 produtos pro termo "${termo}" — resposta: ${bruto.slice(0, 500)}`);
+  // Visto em produção: o Semar às vezes ignora o `size=200` pedido e devolve
+  // uma lista de "sugestões" genéricas (produtos sem relação com o termo
+  // buscado) repetida milhares de vezes, sempre com preço 0 e indisponível —
+  // não é resultado de busca de verdade. Preço 0 nunca é um preço real de
+  // mercado, então filtra essas entradas; o teto extra é só uma blindagem
+  // (o `size` pedido já devia bastar) pra não inflar o prompt da IA.
+  const produtos = hits
+    .map((h) => {
+      const preco = h.pricing?.promotionalPrice ?? h.pricing?.price ?? 0;
+      return { nome: h.name, preco, disponivel: (h.quantity?.inStock ?? 0) > 0 };
+    })
+    .filter((p) => p.preco > 0)
+    .slice(0, 200);
+
+  // Diagnóstico: 0 produtos válidos, ou uma quantidade de hits brutos muito
+  // acima do `size` pedido, indicam resposta fora do esperado — loga uma
+  // amostra pra investigar via runtime logs (mesmo padrão do Alabarce).
+  if (produtos.length === 0 || hits.length > 200) {
+    console.error(`[semar] resposta suspeita pro termo "${termo}" — ${hits.length} hits brutos, ${produtos.length} com preço válido. Amostra: ${bruto.slice(0, 500)}`);
   }
 
   return { produtos };
