@@ -40,13 +40,14 @@ export function Resultado({
   });
   const [pickerAberto, setPickerAberto] = useState<string | null>(null);
 
-  // Quantidade que a pessoa pretende comprar de cada item — só usada pra
-  // estimar um total de compra de verdade, depois de ver o resultado. Não
-  // afeta o ranking dos mercados (esse sempre soma 1 unidade de cada item,
-  // preço bruto encontrado, sem multiplicar nada) nem é salva no item da
-  // lista — é local a essa tela, e vale igual em qualquer mercado que a
-  // pessoa esteja olhando (a mesma quantidade desejada de "arroz", não
-  // importa onde vai comprar).
+  // Quantidade por (mercado, item) — não é "quanto eu quero comprar" no
+  // sentido absoluto, é um multiplicador manual pra equalizar o tamanho da
+  // embalagem que cada mercado encontrou (ex: um vende em 500g, outro em
+  // 1kg — digitar 2 no de 500g compara "1kg com 1kg" de verdade). Por isso
+  // é por mercado: o mesmo item pode precisar de multiplicadores diferentes
+  // em mercados diferentes. Não é salva no item da lista, é local a essa
+  // tela. Começa em 1 (não editado) e alimenta direto o total do mercado —
+  // não tem "total fixo de referência" separado.
   const [quantidades, setQuantidades] = useState<Record<string, string>>({});
 
   // A cotação já chega salva (page.tsx salva assim que /api/cotar responde)
@@ -70,32 +71,27 @@ export function Resultado({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [escolhas]);
 
+  // Total ao vivo por mercado: começa em "1 de cada item" e vai mudando
+  // conforme a pessoa ajusta as quantidades daquele mercado. O ranking usa
+  // esse mesmo total — reclassifica automaticamente a cada ajuste.
   const totais = useMemo(() => {
-    const referencia: Record<string, number> = {};
-    const estimado: Record<string, number> = {};
+    const t: Record<string, number> = {};
     for (const m of resultado.mercados) {
-      let totalReferencia = 0;
-      let totalEstimado = 0;
+      let total = 0;
       for (const item of m.itens) {
         const idx = escolhas[chave(m.mercadoId, item.itemId)];
         if (idx == null) continue;
         const preco = item.candidatos[idx].preco;
-        totalReferencia = round2(totalReferencia + preco);
-        const qtd = parseFloat((quantidades[item.itemId] ?? "1").replace(",", ".")) || 1;
-        totalEstimado = round2(totalEstimado + preco * qtd);
+        const qtd = parseFloat((quantidades[chave(m.mercadoId, item.itemId)] ?? "1").replace(",", ".")) || 1;
+        total = round2(total + preco * qtd);
       }
-      referencia[m.mercadoId] = totalReferencia;
-      estimado[m.mercadoId] = totalEstimado;
+      t[m.mercadoId] = total;
     }
-    return { referencia, estimado };
+    return t;
   }, [resultado, escolhas, quantidades]);
 
-  // Ranking sempre pela referência (1 de cada item, sem multiplicar) — não
-  // muda quando a pessoa mexe nas quantidades, é só um jeito estável de
-  // apontar direção (ver conversa: "continua rankeando, sempre considerando
-  // um item de cada sem multiplicar nada").
-  const menorTotal = Math.min(...resultado.mercados.filter((m) => !m.erro).map((m) => totais.referencia[m.mercadoId]));
-  const ordenados = [...resultado.mercados].sort((a, b) => totais.referencia[a.mercadoId] - totais.referencia[b.mercadoId]);
+  const menorTotal = Math.min(...resultado.mercados.filter((m) => !m.erro).map((m) => totais[m.mercadoId]));
+  const ordenados = [...resultado.mercados].sort((a, b) => totais[a.mercadoId] - totais[b.mercadoId]);
 
   function escolher(mercadoId: MercadoId, itemId: string, idx: number | null) {
     setEscolhas((atual) => ({ ...atual, [chave(mercadoId, itemId)]: idx }));
@@ -107,10 +103,8 @@ export function Resultado({
       <Topo titulo="Resultado da cotação" sub={new Date(resultado.geradoEm).toLocaleString("pt-BR")} onClose={onClose} />
 
       {ordenados.map((m) => {
-        const totalReferencia = totais.referencia[m.mercadoId];
-        const totalEstimado = totais.estimado[m.mercadoId];
-        const temEstimativa = totalEstimado !== totalReferencia;
-        const maisBarato = !m.erro && totalReferencia === menorTotal;
+        const total = totais[m.mercadoId];
+        const maisBarato = !m.erro && total === menorTotal;
         const naoEncontrados = m.itens.filter((item) => escolhas[chave(m.mercadoId, item.itemId)] == null);
         const encontrados = m.itens.filter((item) => escolhas[chave(m.mercadoId, item.itemId)] != null);
 
@@ -120,12 +114,8 @@ export function Resultado({
               <div style={{ fontFamily: fontSerif, fontSize: 16, fontWeight: 600, color: T.ink }}>
                 {m.mercadoNome} {maisBarato && "🏆"}
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: fontSerif, fontSize: 19, fontWeight: 700, color: maisBarato ? T.green : T.ink }}>{fmt(totalReferencia)}</div>
-                {temEstimativa && <div style={{ fontSize: 10.5, color: T.inkSoft }}>estimativa: {fmt(totalEstimado)}</div>}
-              </div>
+              <div style={{ fontFamily: fontSerif, fontSize: 19, fontWeight: 700, color: maisBarato ? T.green : T.ink }}>{fmt(total)}</div>
             </div>
-            <div style={{ fontSize: 10, color: T.inkSoft, marginTop: 2 }}>total de referência — 1 unidade de cada item, sem multiplicar</div>
 
             {m.tokenExpirado && (
               <div
@@ -171,11 +161,11 @@ export function Resultado({
                       </div>
                       {idx != null && (
                         <input
-                          value={quantidades[item.itemId] ?? ""}
-                          onChange={(e) => setQuantidades((atual) => ({ ...atual, [item.itemId]: e.target.value }))}
+                          value={quantidades[k] ?? ""}
+                          onChange={(e) => setQuantidades((atual) => ({ ...atual, [k]: e.target.value }))}
                           placeholder="1"
                           inputMode="decimal"
-                          aria-label={`quantidade de ${item.itemTexto}`}
+                          aria-label={`quantidade de ${item.itemTexto} no ${m.mercadoNome}`}
                           style={{ width: 40, border: `1px solid ${T.line}`, borderRadius: 8, padding: "4px 6px", fontSize: 11.5, textAlign: "center", background: T.paper, color: T.ink }}
                         />
                       )}
