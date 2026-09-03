@@ -22,8 +22,6 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     id: r.id as string,
     listaId: r.lista_id as string,
     texto: r.texto as string,
-    quantidade: r.quantidade == null ? 1 : parseFloat(String(r.quantidade)),
-    unidade: (r.unidade as string) ?? "un",
   }));
   const cotacoes: Cotacao[] = (cotacoesRows as Row[]).map((r) => ({
     listaId: r.lista_id as string,

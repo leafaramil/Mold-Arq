@@ -6,7 +6,7 @@ import type { ResultadoCotacao } from "./types";
 export type Action =
   | { type: "criarLista"; listaId: string; criadaEm: string }
   | { type: "removerLista"; listaId: string }
-  | { type: "addItem"; itemId: string; listaId: string; texto: string; quantidade: number; unidade: string }
+  | { type: "addItem"; itemId: string; listaId: string; texto: string }
   | { type: "removerItem"; itemId: string }
   | { type: "setShibataToken"; token: string }
   | { type: "salvarCotacao"; listaId: string; resultado: ResultadoCotacao };
