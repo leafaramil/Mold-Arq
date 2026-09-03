@@ -12,13 +12,14 @@ interface HitSemar {
 }
 
 export async function buscarSemar(termo: string): Promise<BuscaMercado> {
-  // Investigado em produção (rota de diagnóstico temporária, já removida):
-  // mandar qualquer parâmetro extra junto de `search` (size, from,
-  // sortField, sortOrder, brands/categories/tags vazios...) faz o backend
-  // do Semar ignorar o termo buscado e devolver um catálogo genérico de
-  // ~22 mil itens sem relação nenhuma com a busca. Só `search` sozinho
-  // devolve resultado de busca de verdade.
-  const params = new URLSearchParams({ search: termo });
+  // Investigado em produção (rotas de diagnóstico temporárias, já
+  // removidas): mandar `size` acima de ~20 (testado: 50 já quebra), ou
+  // qualquer outro parâmetro extra (from, page, sortField, sortOrder,
+  // brands/categories/tags vazios...) além de `search`+`size`, faz o
+  // backend do Semar ignorar o termo buscado e devolver um catálogo
+  // genérico de ~22 mil itens sem relação nenhuma com a busca. `size=20`
+  // é o maior valor confirmado que ainda devolve busca de verdade.
+  const params = new URLSearchParams({ search: termo, size: "20" });
 
   let resp: Response;
   try {
@@ -44,9 +45,9 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
 
   const hits = dados.hits ?? [];
 
-  // Preço 0 nunca é um preço real de mercado — filtra por segurança. O teto
-  // de 200 é só blindagem (sem `size` no request, não há como pedir um
-  // limite ao Semar) pra nunca inflar demais o prompt da IA.
+  // Preço 0 nunca é um preço real de mercado — filtra por segurança. O
+  // teto extra é só blindagem contra a resposta quebrada (ver comentário
+  // acima) escapar pelo filtro de preço mesmo assim.
   const produtos = hits
     .map((h) => {
       // `promotionalPrice` vem 0 (não null/undefined) quando não há promoção
@@ -58,12 +59,12 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
       return { nome: h.name, preco, disponivel: (h.quantity?.inStock ?? 0) > 0 };
     })
     .filter((p) => p.preco > 0)
-    .slice(0, 200);
+    .slice(0, 30);
 
   // Diagnóstico: 0 produtos válidos, ou uma quantidade de hits brutos muito
-  // acima do `size` pedido, indicam resposta fora do esperado — loga uma
+  // acima do `size=20` pedido, indicam resposta fora do esperado — loga uma
   // amostra pra investigar via runtime logs (mesmo padrão do Alabarce).
-  if (produtos.length === 0 || hits.length > 200) {
+  if (produtos.length === 0 || hits.length > 30) {
     console.error(`[semar] resposta suspeita pro termo "${termo}" — ${hits.length} hits brutos, ${produtos.length} com preço válido. Amostra: ${bruto.slice(0, 500)}`);
   }
 
