@@ -16,10 +16,11 @@ CREATE TABLE IF NOT EXISTS itens (
   id TEXT PRIMARY KEY,
   lista_id TEXT NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
   texto TEXT NOT NULL,
-  -- quantidade × preço do produto casado no mercado = subtotal daquele item
-  -- na cotação (ver src/app/api/cotar/route.ts). unidade é só rótulo (kg, L,
-  -- dúzia, ...) sugerido por src/lib/unidades.ts a partir do texto — não
-  -- converte entre unidades, é sempre uma multiplicação direta.
+  -- quantidade/unidade: legado, não usadas mais pelo app (a lista só guarda
+  -- o que a pessoa quer, sem quantidade — a quantidade desejada é digitada
+  -- na tela de resultado, só pra estimar um total, e não é persistida por
+  -- item). Colunas mantidas com DEFAULT pra não exigir migração; ok remover
+  -- num cleanup futuro.
   quantidade NUMERIC NOT NULL DEFAULT 1,
   unidade TEXT NOT NULL DEFAULT 'un',
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()

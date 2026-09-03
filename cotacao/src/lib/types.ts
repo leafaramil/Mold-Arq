@@ -7,8 +7,6 @@ export interface Item {
   id: string;
   listaId: string;
   texto: string;
-  quantidade: number;
-  unidade: string;
 }
 
 export interface Config {
@@ -38,8 +36,6 @@ export interface CandidatoProduto {
 export interface ItemNoMercado {
   itemId: string;
   itemTexto: string;
-  quantidade: number;
-  unidade: string;
   candidatos: CandidatoProduto[];
   // índice em `candidatos` escolhido (pela IA, ou pelo usuário depois de
   // trocar) — null quando nenhum candidato é um match razoável.

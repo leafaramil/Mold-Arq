@@ -19,7 +19,7 @@ export function applyAction(model: DataModel, action: Action): DataModel {
     case "addItem":
       return {
         ...model,
-        itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto, quantidade: action.quantidade, unidade: action.unidade }],
+        itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto }],
       };
     case "removerItem":
       return { ...model, itens: model.itens.filter((i) => i.id !== action.itemId) };

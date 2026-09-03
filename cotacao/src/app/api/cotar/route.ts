@@ -100,8 +100,6 @@ export async function POST(req: Request) {
         itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,
           itemTexto: item.texto,
-          quantidade: item.quantidade,
-          unidade: item.unidade,
           candidatos: buscas[mercadoId].produtos,
           escolhaIndex: escolha[mercadoId],
         });
