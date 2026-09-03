@@ -55,7 +55,12 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
   // (o `size` pedido já devia bastar) pra não inflar o prompt da IA.
   const produtos = hits
     .map((h) => {
-      const preco = h.pricing?.promotionalPrice ?? h.pricing?.price ?? 0;
+      // `promotionalPrice` vem 0 (não null/undefined) quando não há promoção
+      // ativa — usar `??` aqui pegava esse 0 como se fosse o preço real,
+      // zerando produtos com preço normal. Só usa promotionalPrice quando
+      // é de fato um valor positivo (promoção ativa).
+      const promo = h.pricing?.promotionalPrice;
+      const preco = promo && promo > 0 ? promo : (h.pricing?.price ?? 0);
       return { nome: h.name, preco, disponivel: (h.quantity?.inStock ?? 0) > 0 };
     })
     .filter((p) => p.preco > 0)
