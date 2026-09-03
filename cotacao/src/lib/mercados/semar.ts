@@ -27,16 +27,21 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
   try {
     resp = await fetch(`${BASE}?${params.toString()}`, { headers: { Accept: "application/json" } });
   } catch (e) {
+    console.error(`[semar] falha de rede pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
   if (!resp.ok) {
+    const corpo = await resp.text().catch(() => "");
+    console.error(`[semar] respondeu ${resp.status} pro termo "${termo}": ${corpo.slice(0, 500)}`);
     return { produtos: [], erro: `Semar respondeu ${resp.status}` };
   }
 
+  const bruto = await resp.text();
   let dados: { hits?: HitSemar[] };
   try {
-    dados = await resp.json();
+    dados = JSON.parse(bruto);
   } catch (e) {
+    console.error(`[semar] resposta não é JSON pro termo "${termo}": ${bruto.slice(0, 500)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
 
@@ -44,6 +49,13 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
     const preco = h.pricing?.promotionalPrice ?? h.pricing?.price ?? 0;
     return { nome: h.name, preco, disponivel: (h.quantity?.inStock ?? 0) > 0 };
   });
+
+  // Diagnóstico: 0 produtos pode ser genuíno (termo sem resultado), mas
+  // também pode indicar mudança de formato de resposta — loga o bruto pra
+  // investigar via runtime logs (mesmo padrão do Alabarce).
+  if (produtos.length === 0) {
+    console.error(`[semar] 0 produtos pro termo "${termo}" — resposta: ${bruto.slice(0, 500)}`);
+  }
 
   return { produtos };
 }
