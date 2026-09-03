@@ -45,15 +45,24 @@ export function Resultado({
   // embalagem que cada mercado encontrou (ex: um vende em 500g, outro em
   // 1kg — digitar 2 no de 500g compara "1kg com 1kg" de verdade). Por isso
   // é por mercado: o mesmo item pode precisar de multiplicadores diferentes
-  // em mercados diferentes. Não é salva no item da lista, é local a essa
-  // tela. Começa em 1 (não editado) e alimenta direto o total do mercado —
-  // não tem "total fixo de referência" separado.
-  const [quantidades, setQuantidades] = useState<Record<string, string>>({});
+  // em mercados diferentes. Começa em 1 (não editado) e alimenta direto o
+  // total do mercado — não tem "total fixo de referência" separado. Salva
+  // junto da cotação (item.quantidade em ItemNoMercado) pra sobreviver a
+  // sair e voltar na tela.
+  const [quantidades, setQuantidades] = useState<Record<string, string>>(() => {
+    const inicial: Record<string, string> = {};
+    for (const m of resultado.mercados) {
+      for (const item of m.itens) {
+        if (item.quantidade) inicial[chave(m.mercadoId, item.itemId)] = item.quantidade;
+      }
+    }
+    return inicial;
+  });
 
   // A cotação já chega salva (page.tsx salva assim que /api/cotar responde)
-  // — só precisa persistir de novo quando o usuário troca uma escolha aqui.
-  // A flag evita salvar de novo no primeiro render, que já reflete o que
-  // está salvo.
+  // — só precisa persistir de novo quando o usuário troca uma escolha ou
+  // ajusta uma quantidade aqui. A flag evita salvar de novo no primeiro
+  // render, que já reflete o que está salvo.
   const primeiraRenderizacao = useRef(true);
   useEffect(() => {
     if (primeiraRenderizacao.current) {
@@ -64,12 +73,16 @@ export function Resultado({
       ...resultado,
       mercados: resultado.mercados.map((m) => ({
         ...m,
-        itens: m.itens.map((item) => ({ ...item, escolhaIndex: escolhas[chave(m.mercadoId, item.itemId)] ?? null })),
+        itens: m.itens.map((item) => ({
+          ...item,
+          escolhaIndex: escolhas[chave(m.mercadoId, item.itemId)] ?? null,
+          quantidade: quantidades[chave(m.mercadoId, item.itemId)],
+        })),
       })),
     };
     dispatch({ type: "salvarCotacao", listaId, resultado: resultadoAtualizado });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [escolhas]);
+  }, [escolhas, quantidades]);
 
   // Total ao vivo por mercado: começa em "1 de cada item" e vai mudando
   // conforme a pessoa ajusta as quantidades daquele mercado. O ranking usa

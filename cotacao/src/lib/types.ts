@@ -40,6 +40,10 @@ export interface ItemNoMercado {
   // índice em `candidatos` escolhido (pela IA, ou pelo usuário depois de
   // trocar) — null quando nenhum candidato é um match razoável.
   escolhaIndex: number | null;
+  // multiplicador manual digitado na tela de resultado pra equalizar o
+  // tamanho da embalagem encontrada nesse mercado (ver Resultado.tsx) —
+  // opcional, ausente/undefined equivale a "1" (não ajustado).
+  quantidade?: string;
 }
 
 export interface ResultadoMercado {
