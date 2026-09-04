@@ -25,6 +25,9 @@ export type NovoItemReceita = {
   dia: number | null;
   quando: string;
   q: "Q1" | "Q2";
+  // Se essa receita gera dízimo (seção 4.5). Default true quando omitido, para
+  // não quebrar quem já dependia do comportamento antigo (sempre com dízimo).
+  dizimo?: boolean;
 };
 
 export type Action =

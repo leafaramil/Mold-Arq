@@ -167,7 +167,7 @@ export function Calendario({
   const [aberto, setAberto] = useState<string | null>(null);
   const [cxAberta, setCxAberta] = useState<string | null>(null);
   const [addRapido, setAddRapido] = useState<{ tipo: "despesa" | "receita"; q: Quinzena } | null>(null);
-  const [rapido, setRapido] = useState({ nome: "", valor: "", dia: "" });
+  const [rapido, setRapido] = useState({ nome: "", valor: "", dia: "", dizimo: true });
   const hoje = useMemo(() => new Date(), []);
 
   const estadosDoMes = model.estados[mes] ?? {};
@@ -406,11 +406,11 @@ export function Calendario({
         itemId: uid(),
         mes,
         apenasEsseMes: true,
-        dados: { nome: rapido.nome, icone: "💰", valor, dia, quando: dia ? `dia ${dia}` : "", q: addRapido.q },
+        dados: { nome: rapido.nome, icone: "💰", valor, dia, quando: dia ? `dia ${dia}` : "", q: addRapido.q, dizimo: rapido.dizimo },
       });
     }
     mostrarToast(`Adicionado só em ${mes}`);
-    setRapido({ nome: "", valor: "", dia: "" });
+    setRapido({ nome: "", valor: "", dia: "", dizimo: true });
     setAddRapido(null);
   }
 
@@ -421,7 +421,7 @@ export function Calendario({
         <div
           onClick={() => {
             setAddRapido({ tipo, q });
-            setRapido({ nome: "", valor: "", dia: "" });
+            setRapido({ nome: "", valor: "", dia: "", dizimo: true });
           }}
           style={{ padding: "9px 2px", fontSize: 11.5, fontWeight: 700, color: T.gold, cursor: "pointer" }}
         >
@@ -457,6 +457,12 @@ export function Calendario({
             style={{ width: 76, padding: 8, borderRadius: 8, border: `1px solid ${T.line}`, fontSize: 12.5 }}
           />
         </div>
+        {tipo === "receita" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, color: T.ink, cursor: "pointer" }}>
+            <input type="checkbox" checked={rapido.dizimo} onChange={(e) => setRapido({ ...rapido, dizimo: e.target.checked })} />
+            Tem dízimo (10%)?
+          </label>
+        )}
         <div style={{ display: "flex", gap: 6 }}>
           <Btn v="gold" onClick={confirmarAddRapido} style={{ padding: 9, fontSize: 12 }}>
             Adicionar

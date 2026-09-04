@@ -65,6 +65,24 @@ describe("propostaParaAcao", () => {
     expect(r.descricao).toContain("1/13");
   });
 
+  it("adicionar_receita: sem dizimo informado, assume true (comportamento antigo)", () => {
+    const model = modeloInicial();
+    const r = propostaParaAcao("adicionar_receita", { nome: "Freela", valor: 500, q: "Q1" }, model, MES);
+    if ("erro" in r) throw new Error("não deveria dar erro");
+    expect(r.acao.type).toBe("addReceita");
+    if (r.acao.type !== "addReceita") return;
+    expect(r.acao.dados.dizimo).toBe(true);
+  });
+
+  it("adicionar_receita: dizimo false para algo como devolução de empréstimo", () => {
+    const model = modeloInicial();
+    const r = propostaParaAcao("adicionar_receita", { nome: "Empréstimo devolvido", valor: 100, q: "Q1", dizimo: false }, model, MES);
+    if ("erro" in r) throw new Error("não deveria dar erro");
+    expect(r.acao.type).toBe("addReceita");
+    if (r.acao.type !== "addReceita") return;
+    expect(r.acao.dados.dizimo).toBe(false);
+  });
+
   it("adicionar_parcela_cartao: calcula a base a partir do fechamento do cartão", () => {
     const model = modeloInicial(); // cartao_rafa fecha dia 3
     const antesDoFechamento = propostaParaAcao("adicionar_parcela_cartao", { cartaoId: "cartao_rafa", desc: "Notebook", parcela: 200, atual: 1, total: 10, diaCompra: 2 }, model, MES);
