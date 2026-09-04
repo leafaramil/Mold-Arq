@@ -171,7 +171,7 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
     }
     case "addReceita":
       await sql`INSERT INTO receitas (id, nome, icone, valor, dia, quando, q, ativa, reserva, dizimo, deduz, apenas_mes)
-                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${action.dados.valor}, ${action.dados.dia}, ${action.dados.quando}, ${action.dados.q}, true, false, true, false, ${action.apenasEsseMes ? action.mes : null})
+                VALUES (${action.itemId}, ${action.dados.nome}, ${action.dados.icone}, ${action.dados.valor}, ${action.dados.dia}, ${action.dados.quando}, ${action.dados.q}, true, false, ${action.dados.dizimo ?? true}, false, ${action.apenasEsseMes ? action.mes : null})
                 ON CONFLICT (id) DO NOTHING`;
       return;
     case "toggleReceita":

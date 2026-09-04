@@ -190,7 +190,7 @@ export function applyAction(model: DataModel, action: Action): DataModel {
             q: action.dados.q,
             ativa: true,
             reserva: false,
-            dizimo: true,
+            dizimo: action.dados.dizimo ?? true,
             deduz: false,
             overrides: {},
             apenasMes: action.apenasEsseMes ? action.mes : null,
