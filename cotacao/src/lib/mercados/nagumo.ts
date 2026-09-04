@@ -97,8 +97,10 @@ export function extrairProdutosDoUpdateGrid(json: string): { produtos: ProdutoNa
 }
 
 function normalizarProdutos(produtosRaw: ProdutoNagumoRaw[]) {
+  // Preço zerado/inválido é descartado: um candidato de R$ 0,00 escolhido
+  // pela IA faria este mercado parecer artificialmente o mais barato.
   return produtosRaw
-    .filter((p) => typeof p.price?.sales?.value === "number")
+    .filter((p) => typeof p.price?.sales?.value === "number" && (p.price!.sales!.value as number) > 0)
     .map((p) => ({ nome: p.productName, preco: p.price!.sales!.value as number, disponivel: p.available !== false }));
 }
 

@@ -44,6 +44,13 @@ export interface ItemNoMercado {
   // tamanho da embalagem encontrada nesse mercado (ver Resultado.tsx) —
   // opcional, ausente/undefined equivale a "1" (não ajustado).
   quantidade?: string;
+  // A busca DESSE item nesse mercado falhou (rede, HTTP, parse, ou a
+  // chamada de IA que faz o casamento). Distinto de escolhaIndex null com
+  // erro ausente, que significa de verdade "esse mercado não vende isso".
+  // Sem esse campo, uma falha pontual sumia como um "não encontrado"
+  // silencioso e o item saía da conta — fazendo o mercado parecer mais
+  // barato do que é.
+  erro?: string;
 }
 
 export interface ResultadoMercado {

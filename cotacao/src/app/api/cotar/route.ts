@@ -7,6 +7,7 @@ import { buscarAlabarce } from "@/lib/mercados/alabarce";
 import { buscarAtacadao } from "@/lib/mercados/atacadao";
 import { buscarNagumo } from "@/lib/mercados/nagumo";
 import { escolherMatches, extrairTermoBusca, type MercadoId } from "@/lib/matching";
+import { buscarComFallback } from "@/lib/mercados/fallback";
 import { mapComConcorrencia } from "@/lib/concorrencia";
 import type { Item } from "@/lib/types";
 import type { ItemNoMercado, ResultadoCotacao, ResultadoMercado } from "@/lib/types";
@@ -17,14 +18,14 @@ export const maxDuration = 60;
 const CONCORRENCIA = 4;
 const NOMES: Record<MercadoId, string> = { shibata: "Shibata", semar: "Semar", alabarce: "Alabarce", atacadao: "Atacadão", nagumo: "Nagumo" };
 
+// O erro por item vive no próprio ItemNoMercado; aqui sobra só o que é
+// mesmo do mercado inteiro (o token do Shibata).
 interface AcumuladorMercado {
-  itens: ItemNoMercado[];
   tokenExpirado: boolean;
-  erro: string | null;
 }
 
 function acumuladorVazio(): AcumuladorMercado {
-  return { itens: [], tokenExpirado: false, erro: null };
+  return { tokenExpirado: false };
 }
 
 export async function POST(req: Request) {
@@ -70,24 +71,18 @@ export async function POST(req: Request) {
       const termo = extrairTermoBusca(item.texto);
 
       const [shibataRes, semarRes, alabarceRes, atacadaoRes, nagumoRes] = await Promise.all([
-        buscarShibata(termo, shibataToken),
-        buscarSemar(termo),
-        buscarAlabarce(termo),
-        buscarAtacadao(termo),
-        buscarNagumo(termo),
+        buscarComFallback(termo, (t: string) => buscarShibata(t, shibataToken)),
+        buscarComFallback(termo, buscarSemar),
+        buscarComFallback(termo, buscarAlabarce),
+        buscarComFallback(termo, buscarAtacadao),
+        buscarComFallback(termo, buscarNagumo),
       ]);
 
       if (shibataRes.tokenExpirado) {
         shibataToken = null;
         acumuladores.shibata.tokenExpirado = true;
       }
-      if (shibataRes.erro) acumuladores.shibata.erro = shibataRes.erro;
-      if (semarRes.erro) acumuladores.semar.erro = semarRes.erro;
-      if (alabarceRes.erro) acumuladores.alabarce.erro = alabarceRes.erro;
-      if (atacadaoRes.erro) acumuladores.atacadao.erro = atacadaoRes.erro;
-      if (nagumoRes.erro) acumuladores.nagumo.erro = nagumoRes.erro;
-
-      const { escolha } = await escolherMatches(item.texto, {
+      const { escolha, erro: erroMatching } = await escolherMatches(item.texto, {
         shibata: shibataRes.produtos,
         semar: semarRes.produtos,
         alabarce: alabarceRes.produtos,
@@ -97,11 +92,19 @@ export async function POST(req: Request) {
 
       const buscas = { shibata: shibataRes, semar: semarRes, alabarce: alabarceRes, atacadao: atacadaoRes, nagumo: nagumoRes };
       for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
+        const busca = buscas[mercadoId];
+        // Falha na busca DESSE item nesse mercado (rede/HTTP/parse), token
+        // expirado, ou falha do casamento por IA — tudo isso precisa chegar
+        // na tela como "não deu pra consultar", nunca como "não encontrado":
+        // um item que some em silêncio derruba o total do mercado e o faz
+        // parecer o mais barato.
+        const erroItem = busca.erro ?? (busca.tokenExpirado ? "token expirado" : undefined) ?? erroMatching;
         itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,
           itemTexto: item.texto,
-          candidatos: buscas[mercadoId].produtos,
+          candidatos: busca.produtos,
           escolhaIndex: escolha[mercadoId],
+          ...(erroItem ? { erro: erroItem } : {}),
         });
       }
     });
@@ -111,12 +114,23 @@ export async function POST(req: Request) {
       mercados: (Object.keys(NOMES) as MercadoId[]).map((id): ResultadoMercado => {
         const acc = acumuladores[id];
         const mapa = itensPorMercado[id];
+        const itensDoMercado = itens.map((item) => mapa.get(item.id)!);
+
+        // O erro no nível do MERCADO ("não deu pra consultar esse mercado")
+        // só vale quando TODOS os itens falharam — aí sim o mercado está
+        // fora do ar. Antes bastava um item falhar pra pintar o mercado
+        // inteiro de erro, escondendo que os outros itens vieram certos;
+        // agora a falha pontual fica no item (ItemNoMercado.erro) e a tela
+        // mostra exatamente qual item não deu pra consultar.
+        const todosFalharam = itensDoMercado.length > 0 && itensDoMercado.every((i) => i.erro);
+        const erroMercado = todosFalharam ? itensDoMercado[0].erro : undefined;
+
         return {
           mercadoId: id,
           mercadoNome: NOMES[id],
-          itens: itens.map((item) => mapa.get(item.id)!),
+          itens: itensDoMercado,
           ...(id === "shibata" && acc.tokenExpirado ? { tokenExpirado: true } : {}),
-          ...(acc.erro ? { erro: acc.erro } : {}),
+          ...(erroMercado ? { erro: erroMercado } : {}),
         };
       }),
     };

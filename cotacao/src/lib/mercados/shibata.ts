@@ -63,7 +63,11 @@ export async function buscarShibata(termo: string, token: string | null): Promis
     if (pagina.length === 0) break;
 
     for (const p of pagina) {
-      produtos.push({ nome: p.descricao, preco: parseFloat(p.preco), disponivel: Boolean(p.disponivel) });
+      // Preço ilegível (NaN) ou zerado nunca é preço real — deixar passar
+      // faria este mercado parecer o mais barato por causa de um dado ruim.
+      const preco = parseFloat(p.preco);
+      if (!Number.isFinite(preco) || preco <= 0) continue;
+      produtos.push({ nome: p.descricao, preco, disponivel: Boolean(p.disponivel) });
     }
   }
 

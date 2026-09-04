@@ -103,8 +103,42 @@ export function Resultado({
     return t;
   }, [resultado, escolhas, quantidades]);
 
-  const menorTotal = Math.min(...resultado.mercados.filter((m) => !m.erro).map((m) => totais[m.mercadoId]));
-  const ordenados = [...resultado.mercados].sort((a, b) => totais[a.mercadoId] - totais[b.mercadoId]);
+  // Cobertura por mercado — a parte que decide se o total dá pra comparar.
+  //
+  // Um mercado que não achou um item simplesmente não soma aquele item, então
+  // um mercado com buracos SEMPRE parece mais barato que um mercado completo.
+  // Antes o 🏆 ia pro menor total sem olhar isso: um mercado que falhou em
+  // tudo somava R$ 0,00 e ganhava. Agora só disputa quem tem os itens todos,
+  // e quem tem buraco fala isso na cara do usuário.
+  const cobertura = useMemo(() => {
+    const c: Record<string, { encontrados: number; naoEncontrados: number; falhas: number; comparavel: boolean }> = {};
+    for (const m of resultado.mercados) {
+      let encontrados = 0;
+      let naoEncontrados = 0;
+      let falhas = 0;
+      for (const item of m.itens) {
+        if (escolhas[chave(m.mercadoId, item.itemId)] != null) encontrados++;
+        else if (item.erro) falhas++; // a busca falhou — não é "o mercado não vende"
+        else naoEncontrados++;
+      }
+      c[m.mercadoId] = { encontrados, naoEncontrados, falhas, comparavel: !m.erro && falhas === 0 && naoEncontrados === 0 };
+    }
+    return c;
+  }, [resultado, escolhas]);
+
+  const comparaveis = resultado.mercados.filter((m) => cobertura[m.mercadoId].comparavel);
+  const menorTotal = comparaveis.length > 0 ? Math.min(...comparaveis.map((m) => totais[m.mercadoId])) : null;
+
+  // Ordem: primeiro quem dá pra comparar (do mais barato pro mais caro),
+  // depois o resto — por cobertura, e só então por preço. Sem isso, o
+  // mercado com menos itens flutuava pro topo justamente por ter somado menos.
+  const ordenados = [...resultado.mercados].sort((a, b) => {
+    const ca = cobertura[a.mercadoId];
+    const cb = cobertura[b.mercadoId];
+    if (ca.comparavel !== cb.comparavel) return ca.comparavel ? -1 : 1;
+    if (!ca.comparavel && ca.encontrados !== cb.encontrados) return cb.encontrados - ca.encontrados;
+    return totais[a.mercadoId] - totais[b.mercadoId];
+  });
 
   function escolher(mercadoId: MercadoId, itemId: string, idx: number | null) {
     setEscolhas((atual) => ({ ...atual, [chave(mercadoId, itemId)]: idx }));
@@ -115,9 +149,17 @@ export function Resultado({
     <div>
       <Topo titulo="Resultado da cotação" sub={new Date(resultado.geradoEm).toLocaleString("pt-BR")} onClose={onClose} />
 
+      {menorTotal == null && (
+        <div style={{ fontSize: 12, color: T.gold, background: T.goldSoft, borderRadius: 10, padding: "9px 11px", marginBottom: 10 }}>
+          Nenhum mercado ficou com a lista completa, então nenhum total é comparável com o outro — quem tem menos itens soma menos e
+          parece mais barato sem ser. Confira os itens em falta antes de decidir.
+        </div>
+      )}
+
       {ordenados.map((m) => {
         const total = totais[m.mercadoId];
-        const maisBarato = !m.erro && total === menorTotal;
+        const cob = cobertura[m.mercadoId];
+        const maisBarato = cob.comparavel && menorTotal != null && total === menorTotal;
         const naoEncontrados = m.itens.filter((item) => escolhas[chave(m.mercadoId, item.itemId)] == null);
         const encontrados = m.itens.filter((item) => escolhas[chave(m.mercadoId, item.itemId)] != null);
 
@@ -144,8 +186,18 @@ export function Resultado({
               </div>
             )}
 
+            {!cob.comparavel && (
+              <div style={{ fontSize: 11.5, color: T.gold, background: T.goldSoft, borderRadius: 8, padding: "7px 10px", marginTop: 8 }}>
+                Total incompleto: {cob.naoEncontrados > 0 && `${cob.naoEncontrados} ${cob.naoEncontrados === 1 ? "item não encontrado" : "itens não encontrados"}`}
+                {cob.naoEncontrados > 0 && cob.falhas > 0 && ", "}
+                {cob.falhas > 0 && `${cob.falhas} ${cob.falhas === 1 ? "item que não deu pra consultar" : "itens que não deram pra consultar"}`}
+                {cob.naoEncontrados === 0 && cob.falhas === 0 && "esse mercado não pôde ser consultado"}. Não dá pra comparar com os
+                outros mercados — falta item na conta.
+              </div>
+            )}
+
             <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 8 }}>
-              {encontrados.length} de {m.itens.length} itens encontrados — toque num item pra trocar a escolha
+              {cob.encontrados} de {m.itens.length} itens encontrados — toque num item pra trocar a escolha
             </div>
 
             <div style={{ marginTop: 10, borderTop: `1px solid ${T.line}`, paddingTop: 10 }}>
@@ -165,7 +217,10 @@ export function Resultado({
                         </div>
                         <div style={{ whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
                           {idx == null ? (
-                            <span style={{ color: T.brick, fontSize: 11 }}>não encontrado</span>
+                            // "falha na busca" e "não encontrado" são coisas
+                            // diferentes: a primeira é problema do app/mercado,
+                            // a segunda é o mercado realmente não ter o produto.
+                            <span style={{ color: item.erro ? T.gold : T.brick, fontSize: 11 }}>{item.erro ? "falha na busca" : "não encontrado"}</span>
                           ) : (
                             <span style={{ color: T.ink, fontWeight: 700 }}>{fmt(item.candidatos[idx].preco)}</span>
                           )}
@@ -186,7 +241,11 @@ export function Resultado({
 
                     {aberto && (
                       <div style={{ background: T.paper, borderRadius: 10, padding: 8, marginBottom: 6 }}>
-                        {item.candidatos.length === 0 && <div style={{ fontSize: 11.5, color: T.inkSoft, padding: "4px 2px" }}>Nenhum resultado de busca nesse mercado.</div>}
+                        {item.candidatos.length === 0 && (
+                          <div style={{ fontSize: 11.5, color: T.inkSoft, padding: "4px 2px" }}>
+                            {item.erro ? `Não deu pra consultar esse item aqui (${item.erro}) — cote de novo pra tentar outra vez.` : "Nenhum resultado de busca nesse mercado."}
+                          </div>
+                        )}
                         {item.candidatos.map((c, i) => (
                           <div
                             key={i}

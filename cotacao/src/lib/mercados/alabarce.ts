@@ -55,7 +55,13 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
 
   // A API do Alabarce não expõe campo de estoque/disponibilidade — trata
   // tudo que veio na resposta como disponível (ver briefing).
-  const produtos = (dados.products ?? []).map((p) => ({ nome: p.name, preco: parsePrecoBR(p.price), disponivel: true }));
+  //
+  // O filtro de preço > 0 não é detalhe: `parsePrecoBR` devolve 0 pra
+  // qualquer preço que não dê pra ler, e um candidato de R$ 0,00 escolhido
+  // pela IA faria este mercado parecer artificialmente o mais barato.
+  const produtos = (dados.products ?? [])
+    .map((p) => ({ nome: p.name, preco: parsePrecoBR(p.price), disponivel: true }))
+    .filter((p) => p.preco > 0);
 
   // Diagnóstico temporário: se não achou nada, loga o formato bruto da
   // resposta pra investigar via runtime logs — a busca direto no site do

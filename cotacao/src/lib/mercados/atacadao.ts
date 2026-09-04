@@ -90,8 +90,10 @@ export async function buscarAtacadao(termo: string): Promise<BuscaMercado> {
 function mapearProdutos(edges: { node?: ProdutoAtacadao }[]) {
   // A API não expõe estoque — trata todo produto com preço válido como
   // disponível (mesma regra do Semar/Alabarce quando falta esse campo).
+  // Preço zerado/inválido é descartado: um candidato de R$ 0,00 escolhido
+  // pela IA faria este mercado parecer artificialmente o mais barato.
   return edges
     .map((e) => e.node)
-    .filter((n): n is ProdutoAtacadao => n != null && typeof n.offers?.lowPrice === "number")
+    .filter((n): n is ProdutoAtacadao => n != null && typeof n.offers?.lowPrice === "number" && (n.offers.lowPrice as number) > 0)
     .map((n) => ({ nome: n.name, preco: n.offers!.lowPrice as number, disponivel: true }));
 }
