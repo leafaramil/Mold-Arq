@@ -1,15 +1,15 @@
-// Casamento de produto por IA (ver briefing): cada item da lista de compras
-// (texto livre, ex: "arroz 5kg", "sabonete dove") precisa ser comparado
-// contra os resultados de busca de cada mercado pro mesmo termo. Um único
-// item pode ter candidatos vindos de até 3 mercados ao mesmo tempo — em vez
-// de 1 chamada de IA por (item, mercado), que triplicaria o custo, este
-// módulo faz 1 chamada por item, passando os candidatos dos 3 mercados
-// juntos e pedindo pro modelo escolher (ou recusar) um match em cada um.
+// Casamento de produto: cada item da lista de compras (texto livre, ex:
+// "arroz 5kg", "sabonete dove") precisa ser comparado contra os resultados
+// de busca de cada mercado pro mesmo termo. Um único item pode ter
+// candidatos vindos de até 5 mercados ao mesmo tempo.
 //
-// Ponto de atenção de custo (ver briefing): pra uma lista de 20-30 itens,
-// isso ainda é uma chamada de IA por item — nada de cache/otimização
-// prematura nessa v1, mas o custo existe e cresce linear com o tamanho da
-// lista.
+// Híbrido, pra não gastar IA em toda cotação: primeiro tenta casar por
+// texto (casamentoDeterministico) — resolve de graça os casos óbvios, tipo
+// "arroz" batendo só com "Arroz Camil 5kg" entre os candidatos. Só o que
+// sobra ambíguo (nome bem diferente, sinônimo, marca vs. genérico, ou dois
+// candidatos parecidos demais pra decidir por texto) vai pra 1 chamada de
+// IA cobrindo os mercados que restaram — nunca 1 chamada por mercado, e
+// nenhuma chamada quando tudo já resolveu por texto.
 import { chamarAnthropicComFerramenta, type AnthropicTool } from "./anthropic-server";
 import type { ProdutoEncontrado } from "./mercados/types";
 
@@ -83,6 +83,44 @@ export function termoFallback(termo: string): string | null {
   return partes[0];
 }
 
+/** Remove acentos pra comparar texto sem depender de "açúcar" vs "acucar" bater certinho. */
+function normalizarTexto(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Palavras de conteúdo do item (sem número/unidade/conectivo), normalizadas pra comparar contra o nome do candidato. */
+function palavrasSignificativas(texto: string): string[] {
+  return texto
+    .trim()
+    .split(/\s+/)
+    .filter((p) => p.length > 0 && !ehDescartavel(p) && !CONECTIVO.test(p))
+    .map(normalizarTexto);
+}
+
+/**
+ * Casamento por texto, sem IA: um candidato só é considerado match se TODAS
+ * as palavras de conteúdo do item aparecerem no nome dele, e se ele for o
+ * ÚNICO candidato nessa condição — dois batendo ao mesmo tempo (ou nenhum)
+ * não é confiável o bastante pra decidir sozinho, cai pra IA. Cobre de graça
+ * os casos óbvios ("arroz" → "Arroz Camil 5kg"); sinônimo, abreviação e
+ * marca vs. genérico continuam precisando da IA pra não virar match errado.
+ */
+export function casamentoDeterministico(itemTexto: string, candidatos: ProdutoEncontrado[]): number | null {
+  const palavras = palavrasSignificativas(itemTexto);
+  if (palavras.length === 0) return null;
+
+  const indices: number[] = [];
+  candidatos.forEach((c, i) => {
+    const nome = normalizarTexto(c.nome);
+    if (palavras.every((p) => nome.includes(p))) indices.push(i);
+  });
+
+  return indices.length === 1 ? indices[0] : null;
+}
+
 interface CandidatosPorMercado {
   shibata: ProdutoEncontrado[];
   semar: ProdutoEncontrado[];
@@ -136,7 +174,7 @@ function indiceValido(i: number | undefined, tamanho: number, mercado: string, i
   return i;
 }
 
-/** Sem candidato nenhum nos 3 mercados, nem vale a pena chamar a IA. */
+/** Sem candidato nenhum nos 5 mercados, nem vale a pena tentar casar. */
 function semCandidatos(c: CandidatosPorMercado): boolean {
   return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0 && c.atacadao.length === 0 && c.nagumo.length === 0;
 }
@@ -145,61 +183,117 @@ export interface ResultadoMatching {
   escolha: MatchEscolhido;
   tokensEntrada: number;
   tokensSaida: number;
-  // Preenchido quando o casamento NÃO pôde ser feito (API da Anthropic fora
-  // do ar, sem crédito, resposta sem tool_use...). Nesse caso `escolha` vem
-  // toda nula, mas isso não quer dizer "não encontrado": quem chama precisa
-  // marcar o item como falha, senão o produto some da conta em silêncio.
+  // Preenchido quando o casamento por IA NÃO pôde ser feito (API da
+  // Anthropic fora do ar, sem crédito, resposta sem tool_use...). Nesse caso
+  // isso não quer dizer "não encontrado" — quem chama precisa marcar como
+  // falha os mercados listados em `mercadosComErro`, senão o produto some
+  // da conta em silêncio. Mercados resolvidos por texto continuam válidos
+  // mesmo que a IA falhe pros que sobraram ambíguos.
   erro?: string;
+  mercadosComErro?: MercadoId[];
 }
 
 export async function escolherMatches(itemTexto: string, candidatos: CandidatosPorMercado): Promise<ResultadoMatching> {
-  const vazio: MatchEscolhido = { shibata: null, semar: null, alabarce: null, atacadao: null, nagumo: null };
   if (semCandidatos(candidatos)) {
-    return { escolha: vazio, tokensEntrada: 0, tokensSaida: 0 };
+    return { escolha: { shibata: null, semar: null, alabarce: null, atacadao: null, nagumo: null }, tokensEntrada: 0, tokensSaida: 0 };
   }
 
+  // Passo 1 — casamento por texto, de graça: resolve os casos óbvios sem IA.
+  // O que sobra ambíguo (ou sem nenhum candidato batendo por texto) vai pro
+  // passo 2. `escolhaDeterministica` só tem chave pros mercados já
+  // resolvidos (índice OU null explícito por falta de candidato) — chave
+  // ausente é o sinal de "ainda precisa da IA", usado no merge final.
+  const mercados = Object.keys(candidatos) as MercadoId[];
+  const escolhaDeterministica: Partial<MatchEscolhido> = {};
+  const candidatosParaIA: CandidatosPorMercado = { shibata: [], semar: [], alabarce: [], atacadao: [], nagumo: [] };
+  let precisaDeIA = false;
+
+  for (const m of mercados) {
+    const lista = candidatos[m];
+    if (lista.length === 0) {
+      escolhaDeterministica[m] = null;
+      continue;
+    }
+    const idx = casamentoDeterministico(itemTexto, lista);
+    if (idx != null) {
+      escolhaDeterministica[m] = idx;
+    } else {
+      candidatosParaIA[m] = lista;
+      precisaDeIA = true;
+    }
+  }
+
+  if (!precisaDeIA) {
+    return { escolha: escolhaDeterministica as MatchEscolhido, tokensEntrada: 0, tokensSaida: 0 };
+  }
+
+  // Passo 2 — só os mercados que sobraram ambíguos vão pro prompt (os já
+  // resolvidos entram como "sem resultados de busca", então a IA nem
+  // precisa opinar sobre eles — o índice dela pra esses é ignorado no merge).
   const system =
     "Você ajuda a comparar preços de mercado. Recebe o item que a pessoa quer comprar (descrito livremente) e os resultados de busca " +
-    "de até 3 mercados diferentes para esse item. Sua única tarefa é indicar qual resultado (se algum) de cada mercado é de fato o mesmo " +
+    "de até 5 mercados diferentes para esse item. Sua única tarefa é indicar qual resultado (se algum) de cada mercado é de fato o mesmo " +
     "produto — nunca invente um match forçado.";
 
   const mensagem = [
     `Item da lista de compras: "${itemTexto}"`,
     "",
     "Candidatos encontrados em cada mercado:",
-    listarCandidatos("Shibata", candidatos.shibata),
-    listarCandidatos("Semar", candidatos.semar),
-    listarCandidatos("Alabarce", candidatos.alabarce),
-    listarCandidatos("Atacadão", candidatos.atacadao),
-    listarCandidatos("Nagumo", candidatos.nagumo),
+    listarCandidatos("Shibata", candidatosParaIA.shibata),
+    listarCandidatos("Semar", candidatosParaIA.semar),
+    listarCandidatos("Alabarce", candidatosParaIA.alabarce),
+    listarCandidatos("Atacadão", candidatosParaIA.atacadao),
+    listarCandidatos("Nagumo", candidatosParaIA.nagumo),
   ].join("\n");
+
+  // Mercados que ainda dependem da resposta da IA — se ela falhar, só esses
+  // viram erro; os resolvidos no passo 1 continuam valendo.
+  const mercadosPendentes = mercados.filter((m) => !(m in escolhaDeterministica));
 
   // Uma falha aqui costumava estourar a cotação inteira (500) ou, pior,
   // passar batido e marcar TODOS os mercados como "não encontrado" pra esse
-  // item. Agora vira um erro explícito por item, que a tela mostra como
-  // falha de busca e o ranking trata como "esse mercado não é comparável".
+  // item. Agora vira um erro explícito só nos mercados pendentes, que a
+  // tela mostra como falha de busca e o ranking trata como "não comparável".
   let resposta;
   try {
     resposta = await chamarAnthropicComFerramenta(system, mensagem, TOOL);
   } catch (e) {
     const erro = e instanceof Error ? e.message : String(e);
     console.error(`[matching] falha na chamada de IA pro item "${itemTexto}": ${erro}`);
-    return { escolha: vazio, tokensEntrada: 0, tokensSaida: 0, erro: "falha ao casar o produto" };
+    const escolhaComPendentesNulos = { ...escolhaDeterministica };
+    for (const m of mercadosPendentes) escolhaComPendentesNulos[m] = null;
+    return { escolha: escolhaComPendentesNulos as MatchEscolhido, tokensEntrada: 0, tokensSaida: 0, erro: "falha ao casar o produto", mercadosComErro: mercadosPendentes };
   }
 
   if (!resposta.ferramenta) {
     console.error(`[matching] resposta da IA sem tool_use pro item "${itemTexto}"`);
-    return { escolha: vazio, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida, erro: "falha ao casar o produto" };
+    const escolhaComPendentesNulos = { ...escolhaDeterministica };
+    for (const m of mercadosPendentes) escolhaComPendentesNulos[m] = null;
+    return {
+      escolha: escolhaComPendentesNulos as MatchEscolhido,
+      tokensEntrada: resposta.tokensEntrada,
+      tokensSaida: resposta.tokensSaida,
+      erro: "falha ao casar o produto",
+      mercadosComErro: mercadosPendentes,
+    };
   }
 
   const input = resposta.ferramenta.input;
 
+  const escolhaIA: MatchEscolhido = {
+    shibata: indiceValido(input.shibata as number | undefined, candidatosParaIA.shibata.length, "Shibata", itemTexto),
+    semar: indiceValido(input.semar as number | undefined, candidatosParaIA.semar.length, "Semar", itemTexto),
+    alabarce: indiceValido(input.alabarce as number | undefined, candidatosParaIA.alabarce.length, "Alabarce", itemTexto),
+    atacadao: indiceValido(input.atacadao as number | undefined, candidatosParaIA.atacadao.length, "Atacadão", itemTexto),
+    nagumo: indiceValido(input.nagumo as number | undefined, candidatosParaIA.nagumo.length, "Nagumo", itemTexto),
+  };
+
   const escolha: MatchEscolhido = {
-    shibata: indiceValido(input.shibata as number | undefined, candidatos.shibata.length, "Shibata", itemTexto),
-    semar: indiceValido(input.semar as number | undefined, candidatos.semar.length, "Semar", itemTexto),
-    alabarce: indiceValido(input.alabarce as number | undefined, candidatos.alabarce.length, "Alabarce", itemTexto),
-    atacadao: indiceValido(input.atacadao as number | undefined, candidatos.atacadao.length, "Atacadão", itemTexto),
-    nagumo: indiceValido(input.nagumo as number | undefined, candidatos.nagumo.length, "Nagumo", itemTexto),
+    shibata: "shibata" in escolhaDeterministica ? (escolhaDeterministica.shibata as number | null) : escolhaIA.shibata,
+    semar: "semar" in escolhaDeterministica ? (escolhaDeterministica.semar as number | null) : escolhaIA.semar,
+    alabarce: "alabarce" in escolhaDeterministica ? (escolhaDeterministica.alabarce as number | null) : escolhaIA.alabarce,
+    atacadao: "atacadao" in escolhaDeterministica ? (escolhaDeterministica.atacadao as number | null) : escolhaIA.atacadao,
+    nagumo: "nagumo" in escolhaDeterministica ? (escolhaDeterministica.nagumo as number | null) : escolhaIA.nagumo,
   };
 
   return { escolha, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida };

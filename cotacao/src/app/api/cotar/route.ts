@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         shibataToken = null;
         acumuladores.shibata.tokenExpirado = true;
       }
-      const { escolha, erro: erroMatching } = await escolherMatches(item.texto, {
+      const { escolha, erro: erroMatching, mercadosComErro } = await escolherMatches(item.texto, {
         shibata: shibataRes.produtos,
         semar: semarRes.produtos,
         alabarce: alabarceRes.produtos,
@@ -97,8 +97,11 @@ export async function POST(req: Request) {
         // expirado, ou falha do casamento por IA — tudo isso precisa chegar
         // na tela como "não deu pra consultar", nunca como "não encontrado":
         // um item que some em silêncio derruba o total do mercado e o faz
-        // parecer o mais barato.
-        const erroItem = busca.erro ?? (busca.tokenExpirado ? "token expirado" : undefined) ?? erroMatching;
+        // parecer o mais barato. O erro de matching só vale pros mercados
+        // que dependiam da IA e ela falhou — um mercado já resolvido por
+        // texto (matching híbrido) não pode virar "erro" só porque a IA
+        // falhou pra OUTRO mercado do mesmo item.
+        const erroItem = busca.erro ?? (busca.tokenExpirado ? "token expirado" : undefined) ?? (mercadosComErro?.includes(mercadoId) ? erroMatching : undefined);
         itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,
           itemTexto: item.texto,
