@@ -57,4 +57,29 @@ describe("buscarComFallback", () => {
     expect(r.erro).toBeUndefined();
     expect(r.produtos).toEqual([]);
   });
+
+  // O caso real que motivou isso: "pasta de dente" busca vazia no Alabarce
+  // porque lá o produto é cadastrado como "creme dental" — sem o sinônimo,
+  // a busca só chegava no fallback de termo curto ("pasta"), que traz pasta
+  // de amendoim/pasta de dente errado em vez do produto certo.
+  it("tenta o sinônimo conhecido antes do termo curto, quando o termo bate no dicionário", async () => {
+    const m = mercado({ "pasta de dente": { produtos: [] }, "creme dental": { produtos: [PRODUTO] } });
+    const r = await buscarComFallback("pasta de dente", m.buscar);
+    expect(r.produtos).toEqual([PRODUTO]);
+    expect(m.termos).toEqual(["pasta de dente", "creme dental"]);
+  });
+
+  it("cai pro termo curto quando o sinônimo também vem vazio", async () => {
+    const m = mercado({ "pasta de dente": { produtos: [] }, "creme dental": { produtos: [] }, "pasta": { produtos: [PRODUTO] } });
+    const r = await buscarComFallback("pasta de dente", m.buscar);
+    expect(r.produtos).toEqual([PRODUTO]);
+    expect(m.termos).toEqual(["pasta de dente", "creme dental", "pasta"]);
+  });
+
+  it("não tenta sinônimo quando o termo não está no dicionário", async () => {
+    const m = mercado({ "arroz integral": { produtos: [] }, "arroz": { produtos: [PRODUTO] } });
+    const r = await buscarComFallback("arroz integral", m.buscar);
+    expect(r.produtos).toEqual([PRODUTO]);
+    expect(m.termos).toEqual(["arroz integral", "arroz"]);
+  });
 });
