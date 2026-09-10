@@ -15,7 +15,9 @@
 // `count`. Busca em loop até esgotar `count` ou até um teto de segurança
 // (100 produtos / 5 páginas), o que vier primeiro.
 import type { BuscaMercado } from "./types";
+import { fetchComTimeout } from "./fetch-timeout";
 
+const TIMEOUT_MS = 8000;
 const BASE = "https://www.nagumo.com.br/busca";
 const UPDATE_GRID = "https://www.nagumo.com.br/on/demandware.store/Sites-Nagumo-Site/pt_BR/Search-UpdateGrid";
 const TAMANHO_PAGINA = 20;
@@ -109,9 +111,7 @@ export async function buscarNagumo(termo: string): Promise<BuscaMercado> {
 
   let resp: Response;
   try {
-    resp = await fetch(`${BASE}?${params.toString()}`, {
-      headers: { Accept: "text/html", "User-Agent": UA_NAVEGADOR },
-    });
+    resp = await fetchComTimeout(`${BASE}?${params.toString()}`, { headers: { Accept: "text/html", "User-Agent": UA_NAVEGADOR } }, TIMEOUT_MS);
   } catch (e) {
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
@@ -138,9 +138,7 @@ export async function buscarNagumo(termo: string): Promise<BuscaMercado> {
     const paramsGrid = new URLSearchParams({ q: termo, start: String(start), sz: String(TAMANHO_PAGINA) });
     let respGrid: Response;
     try {
-      respGrid = await fetch(`${UPDATE_GRID}?${paramsGrid.toString()}`, {
-        headers: { Accept: "application/json", "User-Agent": UA_NAVEGADOR },
-      });
+      respGrid = await fetchComTimeout(`${UPDATE_GRID}?${paramsGrid.toString()}`, { headers: { Accept: "application/json", "User-Agent": UA_NAVEGADOR } }, TIMEOUT_MS);
     } catch {
       break;
     }

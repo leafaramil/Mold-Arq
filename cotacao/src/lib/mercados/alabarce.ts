@@ -9,7 +9,9 @@
 // algum dia passar a exigir algo além do header abaixo, o código-fonte do
 // proxy antigo (no briefing) é a referência.
 import type { BuscaMercado } from "./types";
+import { fetchComTimeout } from "./fetch-timeout";
 
+const TIMEOUT_MS = 8000;
 const BASE = "https://alabarce.net.br/search";
 
 interface ProdutoAlabarce {
@@ -31,12 +33,16 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
     // de navegador (voltam vazio em vez de erro) — buscando "feijão" direto
     // no site funciona, mas via fetch de servidor não achava nada, então
     // este header é a primeira hipótese testada.
-    resp = await fetch(`${BASE}?${params.toString()}`, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    resp = await fetchComTimeout(
+      `${BASE}?${params.toString()}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        },
       },
-    });
+      TIMEOUT_MS,
+    );
   } catch (e) {
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }

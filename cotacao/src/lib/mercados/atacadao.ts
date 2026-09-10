@@ -6,17 +6,18 @@
 //
 // Paginação: validada contra a API real — o cursor `after` aceita offset
 // numérico direto como string ("0", "20", "40"...) e `pageInfo.totalCount`
-// devolve o total de resultados pro termo. Busca em loop até esgotar o
-// total ou até um teto de segurança (100 produtos / 5 páginas), o que
-// vier primeiro — 100 candidatos por termo já é mais que suficiente pro
-// matching por IA, e evita uma lista de páginas sem fim pra termos muito
-// genéricos.
+// devolve o total de resultados pro termo. Busca até esgotar o total ou um
+// teto de segurança (100 produtos / 5 páginas), o que vier primeiro — 100
+// candidatos por termo já é mais que suficiente pro matching, e evita uma
+// lista de páginas sem fim pra termos muito genéricos.
 import type { BuscaMercado } from "./types";
+import { fetchComTimeout } from "./fetch-timeout";
 
 const BASE = "https://www.atacadao.com.br/api/graphql";
 const CHANNEL = JSON.stringify({ salesChannel: "1", seller: "atacadaobr940", regionId: "U1cjYXRhY2FkYW9icjkOMA==" });
 const TAMANHO_PAGINA = 20;
 const MAX_PRODUTOS = 100;
+const TIMEOUT_MS = 8000;
 
 interface ProdutoAtacadao {
   name: string;
@@ -49,39 +50,55 @@ interface RespostaAtacadao {
   };
 }
 
+interface PaginaAtacadao {
+  produtos: ReturnType<typeof mapearProdutos>;
+  total: number | null;
+  erro?: string;
+}
+
+async function buscarPagina(termo: string, after: number): Promise<PaginaAtacadao> {
+  let resp: Response;
+  try {
+    resp = await fetchComTimeout(montarUrlAtacadao(termo, String(after)), { headers: { Accept: "application/json" } }, TIMEOUT_MS);
+  } catch (e) {
+    return { produtos: [], total: null, erro: e instanceof Error ? e.message : String(e) };
+  }
+  if (!resp.ok) {
+    return { produtos: [], total: null, erro: `Atacadão respondeu ${resp.status}` };
+  }
+
+  let dados: RespostaAtacadao;
+  try {
+    dados = await resp.json();
+  } catch (e) {
+    return { produtos: [], total: null, erro: e instanceof Error ? e.message : String(e) };
+  }
+
+  const searchNode = dados.data?.search?.products;
+  const edges = searchNode?.edges ?? [];
+  return { produtos: mapearProdutos(edges), total: searchNode?.pageInfo?.totalCount ?? null };
+}
+
 export async function buscarAtacadao(termo: string): Promise<BuscaMercado> {
-  const produtos: ReturnType<typeof mapearProdutos> = [];
-  let after = 0;
-  let total = Infinity;
+  // Página 1 primeiro, sozinha: se ela falhar, é erro de verdade.
+  const primeira = await buscarPagina(termo, 0);
+  if (primeira.erro) return { produtos: [], erro: primeira.erro };
+  if (primeira.produtos.length === 0) return { produtos: [] };
 
-  while (produtos.length < MAX_PRODUTOS && after < total) {
-    let resp: Response;
-    try {
-      resp = await fetch(montarUrlAtacadao(termo, String(after)), { headers: { Accept: "application/json" } });
-    } catch (e) {
-      if (produtos.length === 0) return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
-      break;
+  let produtos = primeira.produtos;
+
+  // Páginas seguintes em PARALELO, só as que o total real (devolvido pela
+  // própria página 1) diz que existem — evita tanto a espera em série de
+  // antes (cada página esperando a anterior) quanto pedir páginas que nem
+  // existem pra termos com poucos resultados.
+  const totalReal = primeira.total ?? produtos.length;
+  const totalPaginas = Math.min(Math.ceil(MAX_PRODUTOS / TAMANHO_PAGINA), Math.ceil(totalReal / TAMANHO_PAGINA));
+  if (produtos.length < MAX_PRODUTOS && totalPaginas > 1) {
+    const offsets = Array.from({ length: totalPaginas - 1 }, (_, i) => (i + 1) * TAMANHO_PAGINA);
+    const resto = await Promise.all(offsets.map((after) => buscarPagina(termo, after)));
+    for (const r of resto) {
+      if (r.produtos.length > 0) produtos = produtos.concat(r.produtos);
     }
-    if (!resp.ok) {
-      if (produtos.length === 0) return { produtos: [], erro: `Atacadão respondeu ${resp.status}` };
-      break;
-    }
-
-    let dados: RespostaAtacadao;
-    try {
-      dados = await resp.json();
-    } catch (e) {
-      if (produtos.length === 0) return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
-      break;
-    }
-
-    const searchNode = dados.data?.search?.products;
-    const edges = searchNode?.edges ?? [];
-    if (edges.length === 0) break;
-
-    produtos.push(...mapearProdutos(edges));
-    total = searchNode?.pageInfo?.totalCount ?? produtos.length;
-    after += TAMANHO_PAGINA;
   }
 
   return { produtos: produtos.slice(0, MAX_PRODUTOS) };
