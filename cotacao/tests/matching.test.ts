@@ -79,9 +79,15 @@ describe("casamentoDeterministico", () => {
     expect(casamentoDeterministico("açúcar", candidatos)).toBe(0);
   });
 
-  it("não decide quando dois candidatos batem com as mesmas palavras", () => {
-    const candidatos = [produto("Leite Integral Piracanjuba 1L"), produto("Leite Integral Italac 1L")];
-    expect(casamentoDeterministico("leite integral", candidatos)).toBeNull();
+  it("quando vários candidatos batem (item genérico sem marca), escolhe o de preço mediano — nem o mais barato nem o mais caro", () => {
+    const candidatos = [produto("Sabonete Dove 90g", 3.5), produto("Sabonete Protex 85g", 2.0), produto("Sabonete Lux 90g", 2.8)];
+    // ordenado por preço: Protex(2.0) < Lux(2.8) < Dove(3.5) — mediano é o Lux, índice original 2
+    expect(casamentoDeterministico("sabonete", candidatos)).toBe(2);
+  });
+
+  it("com dois candidatos empatados, escolhe o mais caro dos dois (convenção de mediana em lista par)", () => {
+    const candidatos = [produto("Leite Integral Piracanjuba 1L", 5.0), produto("Leite Integral Italac 1L", 6.0)];
+    expect(casamentoDeterministico("leite integral", candidatos)).toBe(1);
   });
 
   it("não decide quando nenhum candidato bate", () => {

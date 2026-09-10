@@ -101,12 +101,20 @@ function palavrasSignificativas(texto: string): string[] {
 }
 
 /**
- * Casamento por texto, sem IA: um candidato só é considerado match se TODAS
- * as palavras de conteúdo do item aparecerem no nome dele, e se ele for o
- * ÚNICO candidato nessa condição — dois batendo ao mesmo tempo (ou nenhum)
- * não é confiável o bastante pra decidir sozinho, cai pra IA. Cobre de graça
- * os casos óbvios ("arroz" → "Arroz Camil 5kg"); sinônimo, abreviação e
- * marca vs. genérico continuam precisando da IA pra não virar match errado.
+ * Casamento por texto, sem IA: um candidato é considerado match se TODAS as
+ * palavras de conteúdo do item aparecerem no nome dele. Cobre de graça os
+ * casos óbvios ("arroz" → "Arroz Camil 5kg"); sinônimo, abreviação e marca
+ * vs. genérico (candidato NENHUM bate) continuam precisando da IA.
+ *
+ * Quando VÁRIOS candidatos batem ao mesmo tempo, não é ambiguidade de
+ * verdade — é o caso comum de item sem marca ("sabonete") num mercado que
+ * vende várias marcas dele. Escolher a IA pra decidir "qual é o certo"
+ * tende a rejeitar tudo (nenhum candidato é "o" sabonete que a pessoa
+ * descreveu, já que ela não disse qual). E pegar o mais barato de cada
+ * mercado enviesaria a comparação pro lado de quem por acaso tem a opção
+ * mais barata daquele item — não é o que a pessoa realmente compraria.
+ * Por isso pega o de preço MEDIANO entre os que bateram: nem o mais barato
+ * nem o mais caro, a estimativa mais honesta pra esse item genérico.
  */
 export function casamentoDeterministico(itemTexto: string, candidatos: ProdutoEncontrado[]): number | null {
   const palavras = palavrasSignificativas(itemTexto);
@@ -118,7 +126,11 @@ export function casamentoDeterministico(itemTexto: string, candidatos: ProdutoEn
     if (palavras.every((p) => nome.includes(p))) indices.push(i);
   });
 
-  return indices.length === 1 ? indices[0] : null;
+  if (indices.length === 0) return null;
+  if (indices.length === 1) return indices[0];
+
+  const ordenadosPorPreco = [...indices].sort((a, b) => candidatos[a].preco - candidatos[b].preco);
+  return ordenadosPorPreco[Math.floor(ordenadosPorPreco.length / 2)];
 }
 
 interface CandidatosPorMercado {
