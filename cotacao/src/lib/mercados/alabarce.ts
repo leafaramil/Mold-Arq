@@ -13,10 +13,31 @@ import { fetchComTimeout } from "./fetch-timeout";
 
 const TIMEOUT_MS = 8000;
 const BASE = "https://alabarce.net.br/search";
+const UA_NAVEGADOR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 interface ProdutoAlabarce {
   name: string;
   price: string; // formato brasileiro: "5,90" ou "1.234,56"
+}
+
+// Diagnóstico temporário (remover depois de confirmar a causa): a busca
+// direto no navegador em alabarce.net.br/products?keywords=... acha
+// produtos que o endpoint /search (usado abaixo) diz não existir pro MESMO
+// termo — confirmado manualmente pro usuário com "mandioquinha",
+// "berinjela" e "tilapia". Ou é um endpoint diferente com index diferente,
+// ou o parâmetro que estamos mandando não é o que a página realmente usa.
+// Quando /search voltar vazio, busca também /products (a página que
+// funciona) e loga um pedaço do HTML bruto pra eu conseguir ver a estrutura
+// real sem precisar de acesso à internet geral desta sessão de dev.
+async function logDiagnosticoPaginaProducts(termo: string): Promise<void> {
+  try {
+    const params = new URLSearchParams({ utf8: "✓", keywords: termo });
+    const resp = await fetchComTimeout(`https://alabarce.net.br/products?${params.toString()}`, { headers: { Accept: "text/html", "User-Agent": UA_NAVEGADOR } }, TIMEOUT_MS);
+    const html = await resp.text();
+    console.error(`[alabarce][diagnostico] /products pro termo "${termo}" (status ${resp.status}), primeiros 4000 chars:\n${html.slice(0, 4000)}`);
+  } catch (e) {
+    console.error(`[alabarce][diagnostico] falha ao buscar /products pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 export function parsePrecoBR(preco: string): number {
@@ -38,7 +59,7 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "User-Agent": UA_NAVEGADOR,
         },
       },
       TIMEOUT_MS,
@@ -76,6 +97,7 @@ export async function buscarAlabarce(termo: string): Promise<BuscaMercado> {
   // de "esse mercado não tem esse produto".
   if (produtos.length === 0) {
     console.error(`[alabarce] 0 produtos pro termo "${termo}" — resposta: ${bruto.slice(0, 500)}`);
+    await logDiagnosticoPaginaProducts(termo);
   }
 
   return { produtos };
