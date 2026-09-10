@@ -12,8 +12,15 @@ import { Lista } from "@/components/Lista";
 import { Resultado } from "@/components/Resultado";
 import { Ajustes } from "@/components/Ajustes";
 import type { ResultadoCotacao } from "@/lib/types";
+import { mesclarResultadoParcial } from "@/lib/cotacao-merge";
 
 type Tela = "home" | "lista" | "resultado" | "ajustes";
+
+// Teto de chamadas de continuação (ver /api/cotar `itensPendentes`) — rede
+// de segurança contra ficar chamando pra sempre se algo inesperado fizer
+// `itensPendentes` nunca esvaziar. Cada rodada só reprocessa quem sobrou,
+// então esse número não precisa ser grande.
+const MAX_RODADAS_COTACAO = 6;
 
 function AppShell() {
   const { model, carregando, offline, nome, entrar, sair, dispatch, toast, mostrarToast, travado, tentarDesbloquear, ofertaBiometria, ativarBiometria, dispensarOfertaBiometria } =
@@ -34,19 +41,33 @@ function AppShell() {
     if (!listaAtualId) return;
     setCotando(true);
     try {
-      const resp = await fetch("/api/cotar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listaId: listaAtualId }),
-      });
-      const dados = await resp.json();
-      if (!resp.ok) {
-        mostrarToast(dados.erro ?? "Não deu pra cotar agora.");
-        return;
+      // Lista grande o bastante pra bater no prazo de segurança de
+      // /api/cotar volta com `itensPendentes` (quem não deu tempo de cotar).
+      // Em vez de mostrar isso como erro pro usuário, chama de novo
+      // automaticamente só com esses itens e mescla no resultado acumulado
+      // — pra quem está usando, é só uma cotação que demorou um pouco mais,
+      // nunca uma falha no meio do caminho.
+      let acumulado: ResultadoCotacao | null = null;
+      let itemIds: string[] | undefined;
+      for (let rodada = 0; rodada < MAX_RODADAS_COTACAO; rodada++) {
+        const resp = await fetch("/api/cotar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listaId: listaAtualId, ...(itemIds ? { itemIds } : {}) }),
+        });
+        const dados = await resp.json();
+        if (!resp.ok) {
+          mostrarToast(dados.erro ?? "Não deu pra cotar agora.");
+          return;
+        }
+        const parcial = dados as ResultadoCotacao;
+        acumulado = acumulado ? mesclarResultadoParcial(acumulado, parcial) : parcial;
+        if (!acumulado.itensPendentes || acumulado.itensPendentes.length === 0) break;
+        itemIds = acumulado.itensPendentes;
       }
-      const resultadoNovo = dados as ResultadoCotacao;
-      setResultado(resultadoNovo);
-      dispatch({ type: "salvarCotacao", listaId: listaAtualId, resultado: resultadoNovo });
+      if (!acumulado) return;
+      setResultado(acumulado);
+      dispatch({ type: "salvarCotacao", listaId: listaAtualId, resultado: acumulado });
       setTela("resultado");
     } catch {
       mostrarToast("Sem conexão — não deu pra cotar agora.");

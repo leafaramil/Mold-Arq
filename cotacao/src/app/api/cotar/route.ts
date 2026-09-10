@@ -49,13 +49,18 @@ function acumuladorVazio(): AcumuladorMercado {
 
 export async function POST(req: Request) {
   try {
-    const { listaId } = (await req.json().catch(() => ({}))) as { listaId?: string };
+    const { listaId, itemIds } = (await req.json().catch(() => ({}))) as { listaId?: string; itemIds?: string[] };
     if (!listaId) {
       return NextResponse.json({ erro: "listaId é obrigatório." }, { status: 400 });
     }
 
     const model = await loadModel(getSql());
-    const itens = model.itens.filter((i) => i.listaId === listaId);
+    // `itemIds`, quando informado, cota só esse subconjunto — é a chamada de
+    // continuação que o cliente dispara automaticamente pros itens que
+    // sobraram de uma cotação anterior que bateu no prazo de segurança
+    // (ver PRAZO_MS abaixo). Sem `itemIds`, cota a lista inteira, como antes.
+    const idsFiltro = itemIds && itemIds.length > 0 ? new Set(itemIds) : null;
+    const itens = model.itens.filter((i) => i.listaId === listaId && (idsFiltro == null || idsFiltro.has(i.id)));
     const token = model.config.shibataToken;
 
     if (itens.length === 0) {
@@ -75,6 +80,7 @@ export async function POST(req: Request) {
     let shibataToken = token;
 
     const inicio = Date.now();
+    const itensPendentes: string[] = [];
 
     // mapComConcorrencia processa vários itens ao mesmo tempo (ver o
     // próprio arquivo) — a ordem de chegada dos resultados não é garantida,
@@ -94,6 +100,7 @@ export async function POST(req: Request) {
       // tempo hábil" em todos os mercados e segue pro próximo. Os itens já
       // concluídos antes disso não são afetados.
       if (Date.now() - inicio > PRAZO_MS) {
+        itensPendentes.push(item.id);
         for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
           itensPorMercado[mercadoId].set(item.id, {
             itemId: item.id,
@@ -152,6 +159,7 @@ export async function POST(req: Request) {
 
     const resultado: ResultadoCotacao = {
       geradoEm: new Date().toISOString(),
+      ...(itensPendentes.length > 0 ? { itensPendentes } : {}),
       mercados: (Object.keys(NOMES) as MercadoId[]).map((id): ResultadoMercado => {
         const acc = acumuladores[id];
         const mapa = itensPorMercado[id];

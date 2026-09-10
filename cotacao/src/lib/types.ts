@@ -64,6 +64,11 @@ export interface ResultadoMercado {
 export interface ResultadoCotacao {
   geradoEm: string;
   mercados: ResultadoMercado[];
+  // IDs dos itens que não deram tempo de cotar dentro do prazo de segurança
+  // de /api/cotar (lista grande demais pra terminar tudo numa chamada só).
+  // Ausente/vazio quando cotou tudo. O cliente usa isso pra saber que
+  // precisa mandar uma chamada de continuação só com esses itens.
+  itensPendentes?: string[];
 }
 
 // A cotação salva de uma listinha — 1 por listaId, sempre a mais recente
