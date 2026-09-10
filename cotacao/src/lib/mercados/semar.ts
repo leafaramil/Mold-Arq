@@ -2,7 +2,9 @@
 // endpoint de busca completa (não o "instant_search", que só traz 5
 // resultados de preview).
 import type { BuscaMercado } from "./types";
+import { fetchComTimeout } from "./fetch-timeout";
 
+const TIMEOUT_MS = 8000;
 const BASE = "https://sense.osuper.com.br/336/1703/search";
 
 interface HitSemar {
@@ -23,7 +25,7 @@ export async function buscarSemar(termo: string): Promise<BuscaMercado> {
 
   let resp: Response;
   try {
-    resp = await fetch(`${BASE}?${params.toString()}`, { headers: { Accept: "application/json" } });
+    resp = await fetchComTimeout(`${BASE}?${params.toString()}`, { headers: { Accept: "application/json" } }, TIMEOUT_MS);
   } catch (e) {
     console.error(`[semar] falha de rede pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };

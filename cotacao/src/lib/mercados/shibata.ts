@@ -9,19 +9,14 @@
 // encontrado", pra não confundir o usuário mostrando "não achamos arroz no
 // Shibata" quando na real é o token que morreu.
 import type { BuscaMercado, ProdutoEncontrado } from "./types";
+import { fetchComTimeout } from "./fetch-timeout";
 
 const BASE = "https://services.vipcommerce.com.br/api-admin/v1/org/161/filial/1/centro_distribuicao/1/loja/buscas/produtos/termo";
-// Paginação sequencial (1 requisição por página, esperando a anterior) — ao
-// contrário do Atacadão/Nagumo, que também paginam mas param no máximo em 5
-// páginas. Termos genéricos ("pasta de dente", "melancia") podem ter muitas
-// páginas de resultado real, e esperar até 20 delas, uma de cada vez, por
-// ITEM da lista (a cotação processa vários itens ao mesmo tempo, mas cada um
-// espera seu próprio Shibata terminar) foi o que estourou o timeout de 60s
-// da função numa lista real — confirmado nos runtime logs (504 em /api/cotar).
 // 100 candidatos (mesmo teto do Atacadão/Nagumo) já é mais que suficiente
 // pro matching; não precisa da cauda longa de páginas raramente relevantes.
 const MAX_PAGINAS = 5;
 const MAX_PRODUTOS = 100;
+const TIMEOUT_MS = 8000;
 
 interface ProdutoShibata {
   produto_id: number;
@@ -31,56 +26,82 @@ interface ProdutoShibata {
   codigo_barras?: string;
 }
 
-export async function buscarShibata(termo: string, token: string | null): Promise<BuscaMercado> {
-  if (!token) {
-    return { produtos: [], tokenExpirado: true };
-  }
+interface PaginaShibata {
+  produtos: ProdutoEncontrado[];
+  tokenExpirado?: boolean;
+  erro?: string;
+}
 
-  const session = crypto.randomUUID();
+function extrairProdutos(pagina: ProdutoShibata[]): ProdutoEncontrado[] {
   const produtos: ProdutoEncontrado[] = [];
+  for (const p of pagina) {
+    // Preço ilegível (NaN) ou zerado nunca é preço real — deixar passar
+    // faria este mercado parecer o mais barato por causa de um dado ruim.
+    const preco = parseFloat(p.preco);
+    if (!Number.isFinite(preco) || preco <= 0) continue;
+    produtos.push({ nome: p.descricao, preco, disponivel: Boolean(p.disponivel) });
+  }
+  return produtos;
+}
 
-  for (let page = 1; page <= MAX_PAGINAS; page++) {
-    const url = `${BASE}/${encodeURIComponent(termo)}?page=${page}&session=${session}`;
-    let resp: Response;
-    try {
-      resp = await fetch(url, {
+async function buscarPagina(termo: string, token: string, session: string, page: number): Promise<PaginaShibata> {
+  const url = `${BASE}/${encodeURIComponent(termo)}?page=${page}&session=${session}`;
+  let resp: Response;
+  try {
+    resp = await fetchComTimeout(
+      url,
+      {
         headers: {
           Authorization: `Bearer ${token}`,
           OrganizationID: "161",
           DomainKey: "loja.shibata.com.br",
           Accept: "application/json",
         },
-      });
-    } catch (e) {
-      return { produtos, erro: e instanceof Error ? e.message : String(e) };
-    }
+      },
+      TIMEOUT_MS,
+    );
+  } catch (e) {
+    return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
+  }
 
-    if (resp.status === 403) {
-      return { produtos, tokenExpirado: true };
-    }
-    if (!resp.ok) {
-      return { produtos, erro: `Shibata respondeu ${resp.status}` };
-    }
+  if (resp.status === 403) return { produtos: [], tokenExpirado: true };
+  if (!resp.ok) return { produtos: [], erro: `Shibata respondeu ${resp.status}` };
 
-    let dados: { success?: boolean; data?: { produtos?: ProdutoShibata[] } };
-    try {
-      dados = await resp.json();
-    } catch (e) {
-      return { produtos, erro: e instanceof Error ? e.message : String(e) };
+  let dados: { success?: boolean; data?: { produtos?: ProdutoShibata[] } };
+  try {
+    dados = await resp.json();
+  } catch (e) {
+    return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
+  }
+
+  return { produtos: extrairProdutos(dados.data?.produtos ?? []) };
+}
+
+export async function buscarShibata(termo: string, token: string | null): Promise<BuscaMercado> {
+  if (!token) {
+    return { produtos: [], tokenExpirado: true };
+  }
+
+  const session = crypto.randomUUID();
+
+  // Página 1 primeiro, sozinha: se ela falhar (token expirado, erro de
+  // rede/HTTP), é erro de verdade e não vale a pena tentar o resto.
+  const primeira = await buscarPagina(termo, token, session, 1);
+  if (primeira.tokenExpirado) return { produtos: [], tokenExpirado: true };
+  if (primeira.erro) return { produtos: [], erro: primeira.erro };
+  if (primeira.produtos.length === 0) return { produtos: [] };
+
+  let produtos = primeira.produtos;
+
+  // Páginas seguintes em PARALELO (não mais uma de cada vez, esperando a
+  // anterior) — pedir 4 páginas em série, cada uma com seu próprio timeout,
+  // podia levar até 4x TIMEOUT_MS só nesse mercado, por item da lista. Uma
+  // página que falhar aqui não derruba a busca (já temos a página 1 válida).
+  if (produtos.length < MAX_PRODUTOS && MAX_PAGINAS > 1) {
+    const resto = await Promise.all(Array.from({ length: MAX_PAGINAS - 1 }, (_, i) => buscarPagina(termo, token, session, i + 2)));
+    for (const r of resto) {
+      if (r.produtos.length > 0) produtos = produtos.concat(r.produtos);
     }
-
-    const pagina = dados.data?.produtos ?? [];
-    if (pagina.length === 0) break;
-
-    for (const p of pagina) {
-      // Preço ilegível (NaN) ou zerado nunca é preço real — deixar passar
-      // faria este mercado parecer o mais barato por causa de um dado ruim.
-      const preco = parseFloat(p.preco);
-      if (!Number.isFinite(preco) || preco <= 0) continue;
-      produtos.push({ nome: p.descricao, preco, disponivel: Boolean(p.disponivel) });
-    }
-
-    if (produtos.length >= MAX_PRODUTOS) break;
   }
 
   return { produtos: produtos.slice(0, MAX_PRODUTOS) };
