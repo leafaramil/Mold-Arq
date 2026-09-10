@@ -308,5 +308,18 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
     nagumo: "nagumo" in escolhaDeterministica ? (escolhaDeterministica.nagumo as number | null) : escolhaIA.nagumo,
   };
 
+  // Diagnóstico temporário: a IA rejeitando TODOS os candidatos de um
+  // mercado pra um item comum ("sabonete", "leite"...) não é erro — ela só
+  // decidiu "nenhum serve". Mas pra confirmar se essa decisão faz sentido
+  // (e não é ela sendo conservadora demais pra item sem marca), loga o que
+  // ela viu e rejeitou. Só dispara pros mercados que foram pra IA e ela
+  // zerou — os resolvidos no passo 1 (texto) não passam por aqui.
+  for (const m of mercadosPendentes) {
+    if (escolha[m] == null && candidatosParaIA[m].length > 0) {
+      const nomes = candidatosParaIA[m].map((c) => `"${c.nome}" (R$ ${c.preco.toFixed(2)})`).join(", ");
+      console.error(`[matching][diagnostico] IA rejeitou todos os candidatos do ${m} pro item "${itemTexto}" — candidatos vistos: ${nomes}`);
+    }
+  }
+
   return { escolha, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida };
 }

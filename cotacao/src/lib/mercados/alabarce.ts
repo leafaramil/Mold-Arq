@@ -29,12 +29,28 @@ interface ProdutoAlabarce {
 // Quando /search voltar vazio, busca também /products (a página que
 // funciona) e loga um pedaço do HTML bruto pra eu conseguir ver a estrutura
 // real sem precisar de acesso à internet geral desta sessão de dev.
+/**
+ * Remove <script>, <style> e comentários do HTML — sem isso, os primeiros
+ * milhares de caracteres da página são só Google Tag Manager/analytics/CSS,
+ * e o log truncado nunca chegava perto do conteúdo real (confirmado: os
+ * primeiros 4000 chars brutos pararam inteiros no <head>).
+ */
+function limparHtmlParaDiagnostico(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n");
+}
+
 async function logDiagnosticoPaginaProducts(termo: string): Promise<void> {
   try {
     const params = new URLSearchParams({ utf8: "✓", keywords: termo });
     const resp = await fetchComTimeout(`https://alabarce.net.br/products?${params.toString()}`, { headers: { Accept: "text/html", "User-Agent": UA_NAVEGADOR } }, TIMEOUT_MS);
     const html = await resp.text();
-    console.error(`[alabarce][diagnostico] /products pro termo "${termo}" (status ${resp.status}), primeiros 4000 chars:\n${html.slice(0, 4000)}`);
+    const limpo = limparHtmlParaDiagnostico(html);
+    console.error(`[alabarce][diagnostico] /products pro termo "${termo}" (status ${resp.status}, ${html.length} chars brutos), primeiros 6000 chars sem script/style:\n${limpo.slice(0, 6000)}`);
   } catch (e) {
     console.error(`[alabarce][diagnostico] falha ao buscar /products pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
   }
