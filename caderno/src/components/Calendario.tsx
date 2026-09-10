@@ -248,6 +248,28 @@ export function Calendario({
     });
   }
 
+  // Pagamento adicional de um cartão que já tem parte paga (fatura em
+  // aberto que recebeu mais de um pagamento — ex: pagou o principal antes
+  // do vencimento e depois quitou o restante). Diferente de "Corrigir"
+  // (que substitui o valor pago inteiro, pra consertar um erro de digitação),
+  // este soma ao que já estava registrado.
+  function pagarMaisCartao(id: string, nome: string, faltaAtual: number) {
+    const e = estadoDeId(id);
+    const jaPago = e.pago ?? 0;
+    setModal({
+      tipo: "valor",
+      titulo: `Pagar ${nome}`,
+      sub: "Valor deste pagamento",
+      valorInicial: faltaAtual,
+      onOk: (v) => {
+        const val = parseValorBR(v);
+        dispatch({ type: "pagar", mes, itemId: id, valor: round2(jaPago + val) });
+        fechar();
+        mostrarToast("Pago");
+      },
+    });
+  }
+
   function addGastoEm(id: string, nome: string) {
     const e = estadoDeId(id);
     const restante = (e.separado || 0) - gastoTotal(e.gastos);
@@ -545,7 +567,7 @@ export function Calendario({
             const btns: Btn2[] = quitado
               ? [btnAdd, { t: "✓ pago", on: () => dispatch({ type: "desPagar", mes, itemId: ct.id }), ativo: true }]
               : pago
-                ? [btnAdd, { t: "Corrigir", on: () => pagar(ct.id, ct.nome) }]
+                ? [btnAdd, { t: "Corrigir", on: () => pagar(ct.id, ct.nome) }, { t: "Pagar", on: () => pagarMaisCartao(ct.id, ct.nome, falta), azul: true }]
                 : sep
                   ? [btnAdd, { t: "🫙", on: () => dispatch({ type: "desSeparar", mes, itemId: ct.id }), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }]
                   : [btnAdd, { t: "Separar", on: () => separar(ct.id, ct.nome, ct.valor), azul: true }, { t: "Pagar", on: () => pagar(ct.id, ct.nome) }];
