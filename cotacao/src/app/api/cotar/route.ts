@@ -15,7 +15,26 @@ import type { ItemNoMercado, ResultadoCotacao, ResultadoMercado } from "@/lib/ty
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const CONCORRENCIA = 4;
+// Sizing pra listas de ~30 itens (o tamanho real mais provável, ver
+// histórico) sem esbarrar nos 60s da Vercel Hobby de novo:
+//
+// - CONCORRENCIA maior processa mais itens ao mesmo tempo. Isso não é
+//   trabalho de CPU, é rede (cada item dispara até 5 chamadas HTTP pros
+//   mercados) — o gargalo é a latência dos sites externos, não este
+//   processo, então mais itens em paralelo reduz o tempo total sem
+//   sobrecarregar o servidor. 6 itens * até 5 mercados = até 30 requisições
+//   simultâneas no pico, um aumento moderado sobre o valor anterior (4).
+// - PRAZO_MS é uma rede de segurança: cada busca de mercado já tem timeout
+//   próprio (fetchComTimeout), mas o total de itens × mercados × casamento
+//   por IA ainda pode, em tese, superar 60s numa lista grande o bastante.
+//   Em vez de deixar a função inteira estourar o limite da Vercel (erro
+//   genérico, ZERO resultado pro usuário, nem os itens que já tinham
+//   terminado), paramos de iniciar itens NOVOS perto do prazo e devolvemos
+//   o que já foi cotado, marcando o resto como "sem tempo hábil". Garante
+//   uma resposta sempre dentro do prazo, não importa o tamanho da lista.
+const CONCORRENCIA = 6;
+const PRAZO_MS = 50_000;
+const ERRO_SEM_TEMPO = "Sem tempo hábil pra cotar (lista muito grande) — tente novamente ou divida a lista.";
 const NOMES: Record<MercadoId, string> = { shibata: "Shibata", semar: "Semar", alabarce: "Alabarce", atacadao: "Atacadão", nagumo: "Nagumo" };
 
 // O erro por item vive no próprio ItemNoMercado; aqui sobra só o que é
@@ -55,6 +74,8 @@ export async function POST(req: Request) {
     // próximos itens da mesma cotação — evita 20-30 chamadas 403 em série.
     let shibataToken = token;
 
+    const inicio = Date.now();
+
     // mapComConcorrencia processa vários itens ao mesmo tempo (ver o
     // próprio arquivo) — a ordem de chegada dos resultados não é garantida,
     // então cada mercado guarda seus itens num Map por itemId e só monta a
@@ -68,6 +89,23 @@ export async function POST(req: Request) {
     };
 
     await mapComConcorrencia(itens, CONCORRENCIA, async (item: Item) => {
+      // Rede de segurança pra listas grandes: se já estourou o prazo
+      // seguro, não inicia mais nenhuma busca — só marca o item como "sem
+      // tempo hábil" em todos os mercados e segue pro próximo. Os itens já
+      // concluídos antes disso não são afetados.
+      if (Date.now() - inicio > PRAZO_MS) {
+        for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
+          itensPorMercado[mercadoId].set(item.id, {
+            itemId: item.id,
+            itemTexto: item.texto,
+            candidatos: [],
+            escolhaIndex: null,
+            erro: ERRO_SEM_TEMPO,
+          });
+        }
+        return;
+      }
+
       const termo = extrairTermoBusca(item.texto);
 
       const [shibataRes, semarRes, alabarceRes, atacadaoRes, nagumoRes] = await Promise.all([
