@@ -243,9 +243,13 @@ export async function escolherMatches(itemTexto: string, candidatos: CandidatosP
   // resolvidos entram como "sem resultados de busca", então a IA nem
   // precisa opinar sobre eles — o índice dela pra esses é ignorado no merge).
   const system =
-    "Você ajuda a comparar preços de mercado. Recebe o item que a pessoa quer comprar (descrito livremente) e os resultados de busca " +
-    "de até 5 mercados diferentes para esse item. Sua única tarefa é indicar qual resultado (se algum) de cada mercado é de fato o mesmo " +
-    "produto — nunca invente um match forçado.";
+    "Você ajuda a comparar preços de mercado. Recebe o item que a pessoa quer comprar (descrito livremente, muitas vezes digitado rápido " +
+    "no celular) e os resultados de busca de até 5 mercados diferentes para esse item. Sua única tarefa é indicar qual resultado (se algum) " +
+    "de cada mercado é de fato o mesmo produto — nunca invente um match forçado.\n\n" +
+    "O texto do item pode ter erros de digitação ou de português (letra faltando, trocada, ou junção errada de palavras — ex: " +
+    '"Madioquinha" por "Mandioquinha", "Beringela" por "Berinjela"). Não rejeite um candidato só por causa de um erro assim: se o nome ' +
+    "do candidato é claramente a versão corrigida da palavra digitada, considere como o mesmo produto. Só rejeite de verdade quando o " +
+    "candidato for outro produto, ainda que pareça parecido (marca errada, sabor errado, variante diferente do que foi descrito).";
 
   const mensagem = [
     `Item da lista de compras: "${itemTexto}"`,

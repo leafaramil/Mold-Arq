@@ -2,9 +2,21 @@
 import { termoFallback } from "../matching";
 import type { BuscaMercado } from "./types";
 
+// Termos que a pessoa descreve de um jeito, mas o mercado cadastra com o
+// nome comercial diferente — confirmado manualmente contra o Alabarce:
+// "pasta de dente" buscado ao pé da letra trazia só "PASTA DE AMENDOIM"
+// (pasta de amendoim) e "SABÃO EM PASTA", nenhum creme dental de verdade,
+// porque no Brasil esse produto é vendido como "creme dental", não "pasta
+// de dente". Chave em minúsculo, comparada contra o termo já normalizado.
+const SINONIMOS: Record<string, string> = {
+  "pasta de dente": "creme dental",
+  "pasta dental": "creme dental",
+};
+
 /**
- * Busca no mercado e, se voltar VAZIO, tenta de novo com um termo mais
- * curto (só a primeira palavra de conteúdo: "feijão carioca" → "feijão").
+ * Busca no mercado e, se voltar VAZIO, tenta de novo — primeiro por um
+ * sinônimo conhecido (ver SINONIMOS), depois por um termo mais curto (só a
+ * primeira palavra de conteúdo: "feijão carioca" → "feijão").
  *
  * Por que isso existe: os mercados usam mecanismos de busca bem diferentes.
  * Alguns são tolerantes; outros (o Alabarce é o caso conhecido) casam o
@@ -19,6 +31,12 @@ import type { BuscaMercado } from "./types";
 export async function buscarComFallback(termo: string, buscar: (t: string) => Promise<BuscaMercado>): Promise<BuscaMercado> {
   const primeira = await buscar(termo);
   if (primeira.erro || primeira.tokenExpirado || primeira.produtos.length > 0) return primeira;
+
+  const sinonimo = SINONIMOS[termo.trim().toLowerCase()];
+  if (sinonimo) {
+    const viaSinonimo = await buscar(sinonimo);
+    if (!viaSinonimo.erro && viaSinonimo.produtos.length > 0) return viaSinonimo;
+  }
 
   const curto = termoFallback(termo);
   if (!curto) return primeira;
