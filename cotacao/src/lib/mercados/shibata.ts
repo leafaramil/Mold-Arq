@@ -11,7 +11,17 @@
 import type { BuscaMercado, ProdutoEncontrado } from "./types";
 
 const BASE = "https://services.vipcommerce.com.br/api-admin/v1/org/161/filial/1/centro_distribuicao/1/loja/buscas/produtos/termo";
-const MAX_PAGINAS = 20;
+// Paginação sequencial (1 requisição por página, esperando a anterior) — ao
+// contrário do Atacadão/Nagumo, que também paginam mas param no máximo em 5
+// páginas. Termos genéricos ("pasta de dente", "melancia") podem ter muitas
+// páginas de resultado real, e esperar até 20 delas, uma de cada vez, por
+// ITEM da lista (a cotação processa vários itens ao mesmo tempo, mas cada um
+// espera seu próprio Shibata terminar) foi o que estourou o timeout de 60s
+// da função numa lista real — confirmado nos runtime logs (504 em /api/cotar).
+// 100 candidatos (mesmo teto do Atacadão/Nagumo) já é mais que suficiente
+// pro matching; não precisa da cauda longa de páginas raramente relevantes.
+const MAX_PAGINAS = 5;
+const MAX_PRODUTOS = 100;
 
 interface ProdutoShibata {
   produto_id: number;
@@ -69,7 +79,9 @@ export async function buscarShibata(termo: string, token: string | null): Promis
       if (!Number.isFinite(preco) || preco <= 0) continue;
       produtos.push({ nome: p.descricao, preco, disponivel: Boolean(p.disponivel) });
     }
+
+    if (produtos.length >= MAX_PRODUTOS) break;
   }
 
-  return { produtos };
+  return { produtos: produtos.slice(0, MAX_PRODUTOS) };
 }
