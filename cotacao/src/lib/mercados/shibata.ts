@@ -68,13 +68,25 @@ async function buscarPagina(termo: string, token: string, session: string, page:
   if (!resp.ok) return { produtos: [], erro: `Shibata respondeu ${resp.status}` };
 
   let dados: { success?: boolean; data?: { produtos?: ProdutoShibata[] } };
+  let bruto: string;
   try {
-    dados = await resp.json();
+    bruto = await resp.text();
+    dados = JSON.parse(bruto);
   } catch (e) {
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
 
-  return { produtos: extrairProdutos(dados.data?.produtos ?? []) };
+  const produtos = extrairProdutos(dados.data?.produtos ?? []);
+  // Diagnóstico: sem isso, um "0 produtos" do Shibata (busca vazia, ou
+  // candidatos que vieram mas foram todos descartados por preço ilegível)
+  // era completamente silencioso — só o Alabarce e o Semar logavam esse
+  // caso, então uma falha de busca aqui parecia idêntica a "não achou" na
+  // tela, sem nenhuma pista de qual dos dois motivos era.
+  if (produtos.length === 0 && page === 1) {
+    const brutos = dados.data?.produtos?.length ?? 0;
+    console.error(`[shibata] 0 produtos pro termo "${termo}" na página 1 — success=${dados.success}, ${brutos} produtos brutos antes do filtro de preço. Resposta: ${bruto.slice(0, 500)}`);
+  }
+  return { produtos };
 }
 
 export async function buscarShibata(termo: string, token: string | null): Promise<BuscaMercado> {
