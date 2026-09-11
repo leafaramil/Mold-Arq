@@ -113,9 +113,12 @@ export async function buscarNagumo(termo: string): Promise<BuscaMercado> {
   try {
     resp = await fetchComTimeout(`${BASE}?${params.toString()}`, { headers: { Accept: "text/html", "User-Agent": UA_NAVEGADOR } }, TIMEOUT_MS);
   } catch (e) {
+    console.error(`[nagumo] falha de rede pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
   if (!resp.ok) {
+    const corpo = await resp.text().catch(() => "");
+    console.error(`[nagumo] respondeu ${resp.status} pro termo "${termo}": ${corpo.slice(0, 500)}`);
     return { produtos: [], erro: `Nagumo respondeu ${resp.status}` };
   }
 
@@ -124,6 +127,7 @@ export async function buscarNagumo(termo: string): Promise<BuscaMercado> {
   try {
     produtosRaw = extrairProdutosDoHtml(html);
   } catch (e) {
+    console.error(`[nagumo] falha ao extrair produtos do HTML pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
   if (produtosRaw == null) {

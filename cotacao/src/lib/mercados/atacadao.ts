@@ -11,7 +11,7 @@
 // candidatos por termo já é mais que suficiente pro matching, e evita uma
 // lista de páginas sem fim pra termos muito genéricos.
 import type { BuscaMercado } from "./types";
-import { fetchComTimeout } from "./fetch-timeout";
+import { fetchComRetry } from "./fetch-timeout";
 
 const BASE = "https://www.atacadao.com.br/api/graphql";
 const CHANNEL = JSON.stringify({ salesChannel: "1", seller: "atacadaobr940", regionId: "U1cjYXRhY2FkYW9icjkOMA==" });
@@ -59,11 +59,14 @@ interface PaginaAtacadao {
 async function buscarPagina(termo: string, after: number): Promise<PaginaAtacadao> {
   let resp: Response;
   try {
-    resp = await fetchComTimeout(montarUrlAtacadao(termo, String(after)), { headers: { Accept: "application/json" } }, TIMEOUT_MS);
+    resp = await fetchComRetry(montarUrlAtacadao(termo, String(after)), { headers: { Accept: "application/json" } }, TIMEOUT_MS);
   } catch (e) {
+    console.error(`[atacadao] falha de rede pro termo "${termo}" (after=${after}): ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], total: null, erro: e instanceof Error ? e.message : String(e) };
   }
   if (!resp.ok) {
+    const corpo = await resp.text().catch(() => "");
+    console.error(`[atacadao] respondeu ${resp.status} pro termo "${termo}" (after=${after}): ${corpo.slice(0, 500)}`);
     return { produtos: [], total: null, erro: `Atacadão respondeu ${resp.status}` };
   }
 
@@ -71,6 +74,7 @@ async function buscarPagina(termo: string, after: number): Promise<PaginaAtacada
   try {
     dados = await resp.json();
   } catch (e) {
+    console.error(`[atacadao] resposta não é JSON pro termo "${termo}" (after=${after}): ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], total: null, erro: e instanceof Error ? e.message : String(e) };
   }
 

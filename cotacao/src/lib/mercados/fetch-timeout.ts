@@ -22,3 +22,33 @@ export async function fetchComTimeout(url: string, init: RequestInit, timeoutMs:
     clearTimeout(timer);
   }
 }
+
+// Descoberto investigando "falha na busca" sem log nenhum (Alabarce/Shibata,
+// itens diferentes a cada cotação): com CONCORRENCIA=6 itens em paralelo,
+// cada um disparando pro mesmo mercado ao mesmo tempo, um timeout ou status
+// transitório (429/5xx) isolado — não uma falha real do mercado — bastava
+// pra sumir com o item. Uma segunda tentativa, depois de uma pausa curta pra
+// não bater exatamente na mesma instabilidade, resolve a maioria desses
+// casos sem custar muito tempo (o timeout de cada mercado já é curto e
+// /api/cotar tem sua própria rede de segurança de prazo).
+function pausa(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const STATUS_TRANSITORIO = new Set([429, 500, 502, 503, 504]);
+
+export async function fetchComRetry(url: string, init: RequestInit, timeoutMs: number, tentativas = 2): Promise<Response> {
+  let ultimoErro: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const resp = await fetchComTimeout(url, init, timeoutMs);
+      if (resp.ok || i === tentativas - 1 || !STATUS_TRANSITORIO.has(resp.status)) return resp;
+      ultimoErro = new Error(`status ${resp.status}`);
+    } catch (e) {
+      ultimoErro = e;
+      if (i === tentativas - 1) throw e;
+    }
+    await pausa(300);
+  }
+  throw ultimoErro;
+}
