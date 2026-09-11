@@ -11,7 +11,14 @@
 import type { BuscaMercado } from "./types";
 import { fetchComTimeout, fetchComRetry } from "./fetch-timeout";
 
-const TIMEOUT_MS = 8000;
+// 15s (não os 8s padrão dos outros mercados): confirmado em produção que
+// termos únicos muito genéricos ("Leite", "Sabonete" — que casam com
+// centenas de produtos) fazem o backend do Alabarce demorar mais pra montar
+// a resposta, e 8s não bastava mesmo com uma segunda tentativa (duas falhas
+// seguidas em 8s cada, log "[alabarce] falha de rede... sem resposta em
+// 8000ms"). Termos específicos respondem rápido; o custo aqui é só nesse
+// caso raro de termo muito amplo.
+const TIMEOUT_MS = 15000;
 const BASE = "https://alabarce.net.br/search";
 const UA_NAVEGADOR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
