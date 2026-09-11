@@ -9,7 +9,7 @@
 // encontrado", pra não confundir o usuário mostrando "não achamos arroz no
 // Shibata" quando na real é o token que morreu.
 import type { BuscaMercado, ProdutoEncontrado } from "./types";
-import { fetchComTimeout } from "./fetch-timeout";
+import { fetchComRetry } from "./fetch-timeout";
 
 const BASE = "https://services.vipcommerce.com.br/api-admin/v1/org/161/filial/1/centro_distribuicao/1/loja/buscas/produtos/termo";
 // 100 candidatos (mesmo teto do Atacadão/Nagumo) já é mais que suficiente
@@ -48,7 +48,7 @@ async function buscarPagina(termo: string, token: string, session: string, page:
   const url = `${BASE}/${encodeURIComponent(termo)}?page=${page}&session=${session}`;
   let resp: Response;
   try {
-    resp = await fetchComTimeout(
+    resp = await fetchComRetry(
       url,
       {
         headers: {
@@ -61,11 +61,19 @@ async function buscarPagina(termo: string, token: string, session: string, page:
       TIMEOUT_MS,
     );
   } catch (e) {
+    console.error(`[shibata] falha de rede pro termo "${termo}" (página ${page}): ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
 
-  if (resp.status === 403) return { produtos: [], tokenExpirado: true };
-  if (!resp.ok) return { produtos: [], erro: `Shibata respondeu ${resp.status}` };
+  if (resp.status === 403) {
+    console.error(`[shibata] token expirado (403) pro termo "${termo}" (página ${page})`);
+    return { produtos: [], tokenExpirado: true };
+  }
+  if (!resp.ok) {
+    const corpo = await resp.text().catch(() => "");
+    console.error(`[shibata] respondeu ${resp.status} pro termo "${termo}" (página ${page}): ${corpo.slice(0, 500)}`);
+    return { produtos: [], erro: `Shibata respondeu ${resp.status}` };
+  }
 
   let dados: { success?: boolean; data?: { produtos?: ProdutoShibata[] } };
   let bruto: string;
