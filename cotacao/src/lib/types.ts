@@ -7,6 +7,7 @@ export interface Item {
   id: string;
   listaId: string;
   texto: string;
+  ordem: number; // posição de exibição dentro da listinha — reordenável na tela
 }
 
 export interface Config {
