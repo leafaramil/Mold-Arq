@@ -127,6 +127,7 @@ export async function buscarNagumo(termo: string): Promise<BuscaMercado> {
   try {
     produtosRaw = extrairProdutosDoHtml(html);
   } catch (e) {
+    console.error(`[nagumo] falha ao extrair produtos do HTML pro termo "${termo}": ${e instanceof Error ? e.message : String(e)}`);
     return { produtos: [], erro: e instanceof Error ? e.message : String(e) };
   }
   if (produtosRaw == null) {
