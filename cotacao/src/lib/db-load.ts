@@ -12,7 +12,7 @@ const paraIso = (v: unknown): string => (v instanceof Date ? v.toISOString() : S
 export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<DataModel> {
   const [listasRows, itensRows, cotacoesRows, configRows] = await Promise.all([
     sql`SELECT * FROM listas ORDER BY criada_em DESC`,
-    sql`SELECT * FROM itens ORDER BY criado_em`,
+    sql`SELECT * FROM itens ORDER BY lista_id, ordem, criado_em`,
     sql`SELECT * FROM cotacoes`,
     sql`SELECT * FROM config WHERE id = 1`,
   ]);
@@ -22,6 +22,7 @@ export async function loadModel(sql: NeonQueryFunction<false, false>): Promise<D
     id: r.id as string,
     listaId: r.lista_id as string,
     texto: r.texto as string,
+    ordem: Number(r.ordem),
   }));
   const cotacoes: Cotacao[] = (cotacoesRows as Row[]).map((r) => ({
     listaId: r.lista_id as string,

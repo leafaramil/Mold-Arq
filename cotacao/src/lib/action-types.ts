@@ -8,5 +8,7 @@ export type Action =
   | { type: "removerLista"; listaId: string }
   | { type: "addItem"; itemId: string; listaId: string; texto: string }
   | { type: "removerItem"; itemId: string }
+  | { type: "editarItem"; itemId: string; texto: string }
+  | { type: "reordenarItens"; atualizacoes: { itemId: string; ordem: number }[] }
   | { type: "setShibataToken"; token: string }
   | { type: "salvarCotacao"; listaId: string; resultado: ResultadoCotacao };

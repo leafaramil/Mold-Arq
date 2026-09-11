@@ -30,6 +30,10 @@ export function Lista({
 }) {
   const [texto, setTexto] = useState("");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [textoEdicao, setTextoEdicao] = useState("");
+
+  const itensOrdenados = [...itens].sort((a, b) => a.ordem - b.ordem);
 
   function adicionar() {
     const limpo = texto.trim();
@@ -41,6 +45,33 @@ export function Lista({
   function excluirListinha() {
     dispatch({ type: "removerLista", listaId: lista.id });
     onExcluida();
+  }
+
+  function iniciarEdicao(item: Item) {
+    setEditandoId(item.id);
+    setTextoEdicao(item.texto);
+  }
+
+  function salvarEdicao() {
+    const limpo = textoEdicao.trim();
+    if (editandoId && limpo) {
+      dispatch({ type: "editarItem", itemId: editandoId, texto: limpo });
+    }
+    setEditandoId(null);
+  }
+
+  function mover(item: Item, direcao: "up" | "down") {
+    const idx = itensOrdenados.findIndex((i) => i.id === item.id);
+    const vizinhoIdx = direcao === "up" ? idx - 1 : idx + 1;
+    if (vizinhoIdx < 0 || vizinhoIdx >= itensOrdenados.length) return;
+    const vizinho = itensOrdenados[vizinhoIdx];
+    dispatch({
+      type: "reordenarItens",
+      atualizacoes: [
+        { itemId: item.id, ordem: vizinho.ordem },
+        { itemId: vizinho.id, ordem: item.ordem },
+      ],
+    });
   }
 
   return (
@@ -137,15 +168,55 @@ export function Lista({
         </div>
       </Card>
 
-      {itens.length === 0 && (
+      {itensOrdenados.length === 0 && (
         <div style={{ textAlign: "center", color: T.inkSoft, fontSize: 12.5, padding: "30px 10px" }}>
           Nenhum item ainda. Vá adicionando conforme algo for acabando em casa.
         </div>
       )}
 
-      {itens.map((item) => (
-        <Card key={item.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 15px" }}>
-          <div style={{ fontSize: 13.5, color: T.ink }}>{item.texto}</div>
+      {itensOrdenados.length > 0 && (
+        <div style={{ fontSize: 10.5, color: T.inkSoft, margin: "0 2px 6px" }}>
+          Toque no texto pra editar, use ▲▼ pra reordenar (agrupe pela ordem do mercado).
+        </div>
+      )}
+
+      {itensOrdenados.map((item, idx) => (
+        <Card key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <button
+              onClick={() => mover(item, "up")}
+              disabled={idx === 0}
+              aria-label={`mover "${item.texto}" pra cima`}
+              style={{ border: "none", background: "transparent", color: idx === 0 ? T.line : T.inkSoft, cursor: idx === 0 ? "default" : "pointer", fontSize: 11, lineHeight: 1, padding: 3 }}
+            >
+              ▲
+            </button>
+            <button
+              onClick={() => mover(item, "down")}
+              disabled={idx === itensOrdenados.length - 1}
+              aria-label={`mover "${item.texto}" pra baixo`}
+              style={{ border: "none", background: "transparent", color: idx === itensOrdenados.length - 1 ? T.line : T.inkSoft, cursor: idx === itensOrdenados.length - 1 ? "default" : "pointer", fontSize: 11, lineHeight: 1, padding: 3 }}
+            >
+              ▼
+            </button>
+          </div>
+          {editandoId === item.id ? (
+            <input
+              autoFocus
+              value={textoEdicao}
+              onChange={(e) => setTextoEdicao(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") salvarEdicao();
+                if (e.key === "Escape") setEditandoId(null);
+              }}
+              onBlur={salvarEdicao}
+              style={{ flex: 1, border: `1px solid ${T.line}`, borderRadius: 8, padding: "6px 8px", fontSize: 13.5, background: T.paper, color: T.ink }}
+            />
+          ) : (
+            <div onClick={() => iniciarEdicao(item)} style={{ flex: 1, fontSize: 13.5, color: T.ink, cursor: "pointer" }}>
+              {item.texto}
+            </div>
+          )}
           <div onClick={() => dispatch({ type: "removerItem", itemId: item.id })} style={{ cursor: "pointer", color: T.brick, fontSize: 15, padding: "0 4px" }}>
             ✕
           </div>

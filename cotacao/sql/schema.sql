@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS itens (
   id TEXT PRIMARY KEY,
   lista_id TEXT NOT NULL REFERENCES listas(id) ON DELETE CASCADE,
   texto TEXT NOT NULL,
+  -- ordem de exibição dentro da listinha — o casal reordena na tela pra
+  -- agrupar os itens que ficam próximos no mercado, então a ordem em que
+  -- foi digitado deixa de bastar depois da primeira reorganização.
+  ordem INTEGER NOT NULL DEFAULT 0,
   -- quantidade/unidade: legado, não usadas mais pelo app (a lista só guarda
   -- o que a pessoa quer, sem quantidade — a quantidade desejada é digitada
   -- na tela de resultado, só pra estimar um total, e não é persistida por
@@ -26,6 +30,18 @@ CREATE TABLE IF NOT EXISTS itens (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS itens_lista_idx ON itens (lista_id);
+
+-- Migração pra quem já tinha a tabela itens sem a coluna ordem: adiciona e
+-- preenche com a ordem de criação (a única ordem que existia até então).
+-- Roda de novo sem efeito depois que todo mundo já tem ordem preenchida.
+ALTER TABLE itens ADD COLUMN IF NOT EXISTS ordem INTEGER;
+UPDATE itens SET ordem = sub.rn FROM (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY lista_id ORDER BY criado_em) - 1 AS rn
+  FROM itens
+) AS sub
+WHERE itens.id = sub.id AND itens.ordem IS NULL;
+ALTER TABLE itens ALTER COLUMN ordem SET DEFAULT 0;
+ALTER TABLE itens ALTER COLUMN ordem SET NOT NULL;
 
 -- Última cotação de cada listinha (1 por listinha, não histórico — cotar
 -- de novo substitui). Guarda o ResultadoCotacao inteiro (src/lib/types.ts)

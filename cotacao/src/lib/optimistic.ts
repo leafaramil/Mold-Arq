@@ -16,13 +16,22 @@ export function applyAction(model: DataModel, action: Action): DataModel {
         itens: model.itens.filter((i) => i.listaId !== action.listaId),
         cotacoes: model.cotacoes.filter((c) => c.listaId !== action.listaId),
       };
-    case "addItem":
+    case "addItem": {
+      const itensDaLista = model.itens.filter((i) => i.listaId === action.listaId);
+      const ordem = itensDaLista.length > 0 ? Math.max(...itensDaLista.map((i) => i.ordem)) + 1 : 0;
       return {
         ...model,
-        itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto }],
+        itens: [...model.itens, { id: action.itemId, listaId: action.listaId, texto: action.texto, ordem }],
       };
+    }
     case "removerItem":
       return { ...model, itens: model.itens.filter((i) => i.id !== action.itemId) };
+    case "editarItem":
+      return { ...model, itens: model.itens.map((i) => (i.id === action.itemId ? { ...i, texto: action.texto } : i)) };
+    case "reordenarItens": {
+      const novaOrdem = new Map(action.atualizacoes.map((a) => [a.itemId, a.ordem]));
+      return { ...model, itens: model.itens.map((i) => (novaOrdem.has(i.id) ? { ...i, ordem: novaOrdem.get(i.id)! } : i)) };
+    }
     case "setShibataToken":
       return { ...model, config: { ...model.config, shibataToken: action.token } };
     case "salvarCotacao":
