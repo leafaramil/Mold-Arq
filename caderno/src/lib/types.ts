@@ -157,7 +157,7 @@ export interface LivreBreakdown {
   saldoInicial: number;
   recebido: number;
   pagoBruto: number;
-  pago: number; // pagoBruto + gasto já saído das caixinhas ainda abertas
+  pago: number; // pagoBruto + gasto já saído das caixinhas ainda abertas + cartões já pagos (não os só separados)
   separado: number; // ainda reservado, atravessando todas as despesas/cartões
   estouro: number;
   devolvido: number;
