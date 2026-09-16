@@ -508,6 +508,22 @@ describe("seção 8 — cenários obrigatórios", () => {
     expect(antes.cartoesLancados).toBe(0); // em aberto, não desconta
   });
 
+  it("cartão pago soma no \"pago\" exibido na tela inicial junto das despesas", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "energia", { pago: 668.29 });
+    setEstado(model, MES, "cartao_rafa", { pago: 1465.26 });
+    const r = calcularLivre(model, MES, HOJE);
+    expect(r.pago).toBe(668.29 + 1465.26);
+  });
+
+  it("cartão só separado (ainda não pago) não conta como \"pago\"", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "cartao_rafa", { separado: 1465.26 });
+    const r = calcularLivre(model, MES, HOJE);
+    expect(r.pago).toBe(0);
+    expect(r.cartoesLancados).toBe(1465.26);
+  });
+
   it("cenário 8 (repetido via calcularLivre): escopo do override não vaza pro mês seguinte", () => {
     const model = modeloInicial();
     const agua = model.despesas.find((d) => d.id === "agua")!;
