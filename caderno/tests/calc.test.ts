@@ -590,15 +590,32 @@ describe("calcularLivre — todos os componentes somando corretamente", () => {
 
     expect(r.recebido).toBe(4500);
     expect(r.pagoBruto).toBe(700);
-    expect(r.pago).toBe(700 + 1000); // energia paga + mercado todo consumido da caixinha (min(gasto,separado))
+    // tudo que saiu: energia paga + caixinha consumida + estouro + ZUL
+    expect(r.pago).toBe(700 + 1000 + 200 + 34.5);
     expect(r.separado).toBe(194.43 + 1465.26); // iptu (sem gasto) + cartão; mercado zerou (gastou tudo e mais)
     expect(r.estouro).toBe(200);
     expect(r.gastoZulMes).toBe(34.5);
     expect(r.cartoesLancados).toBe(1465.26);
 
-    const esperado = round2(
-      0 + 4500 - 700 - (194.43 + 1465.26) - 1000 - 200 - 0 - 34.5 - 1465.26,
-    );
+    // o cartão separado entra em `separado` E em `cartoesLancados`, mas só
+    // pode sair uma vez do livre — por isso o desconto usa o separado das
+    // despesas, não o `separado` exibido.
+    const esperado = round2(0 + 4500 - 700 - 194.43 - 1000 - 200 - 0 - 34.5 - 1465.26);
     expect(r.livre).toBe(esperado);
+    expect(r.livre).toBe(905.81);
+  });
+
+  it("os cards da tela inicial fecham exatamente no livre", () => {
+    const model = modeloInicial();
+    setEstado(model, MES, "space30", { recebido: 4500, devolvido: 399.5 });
+    setEstado(model, MES, "energia", { pago: 700 });
+    setEstado(model, MES, "iptu", { separado: 194.43 });
+    setEstado(model, MES, "mercado_q1", { separado: 1000, gastos: [{ id: "g1", valor: 1200, data: "2026-09-05" }] });
+    setEstado(model, MES, "cartao_rafa", { separado: 1465.26 });
+    setEstado(model, MES, "cartao_le", { pago: 103 });
+    model.caixinhas.tag.mov.push({ id: "r1", tipo: "recarga", disponivel: 30, custo: 34.5, data: "2026-09-01", mes: MES });
+
+    const r = calcularLivre(model, MES, HOJE);
+    expect(round2(r.saldoInicial + r.recebido - r.pago - r.separado)).toBe(r.livre);
   });
 });
