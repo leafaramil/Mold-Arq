@@ -84,7 +84,7 @@ export function termoFallback(termo: string): string | null {
 }
 
 /** Remove acentos pra comparar texto sem depender de "açúcar" vs "acucar" bater certinho. */
-function normalizarTexto(s: string): string {
+export function normalizarTexto(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -92,7 +92,7 @@ function normalizarTexto(s: string): string {
 }
 
 /** Palavras de conteúdo do item (sem número/unidade/conectivo), normalizadas pra comparar contra o nome do candidato. */
-function palavrasSignificativas(texto: string): string[] {
+export function palavrasSignificativas(texto: string): string[] {
   return texto
     .trim()
     .split(/\s+/)
