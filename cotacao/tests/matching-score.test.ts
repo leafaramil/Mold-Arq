@@ -53,6 +53,26 @@ describe("coberturaTokens", () => {
   });
 });
 
+// Teste negativo do limiar de 0.7 (SIMILARIDADE_MINIMA_TOKEN): a tolerância a
+// erro de digitação não pode virar tolerância a PALAVRA DIFERENTE. "carne" e
+// "carro" têm Dice = 0.5 (abaixo do limiar) — parecidas na grafia, mas são
+// produtos completamente diferentes; isso NUNCA pode contar como cobertura.
+// Do outro lado do limiar, "leite"/"peite" (Dice = 0.75, mesmo formato de erro
+// de digitação de uma letra do teste de diceCoeficiente acima) TEM que contar.
+// Roda antes do resto pra validar que o limiar calibrado não é permissivo
+// demais antes de construir o cache de preferência e a troca do fluxo em cima dele.
+describe("coberturaTokens — limiar de 0.7 (negativo/positivo)", () => {
+  it("NÃO conta como cobertura abaixo do limiar — palavra diferente, não erro de digitação", () => {
+    expect(diceCoeficiente("carne", "carro")).toBeLessThan(0.7);
+    expect(coberturaTokens(["carne"], ["carro"])).toBe(0);
+  });
+
+  it("conta como cobertura acima do limiar — erro de digitação de fato", () => {
+    expect(diceCoeficiente("leite", "peite")).toBeGreaterThanOrEqual(0.7);
+    expect(coberturaTokens(["leite"], ["peite"])).toBe(1);
+  });
+});
+
 describe("pontuarCandidatos — filtro de tamanho", () => {
   it("descarta candidato com tamanho divergente antes de pontuar", () => {
     const candidatos = [produto("Leite em Pó Integral Ninho 380g"), produto("Leite Integral Piracanjuba 1L")];
@@ -139,11 +159,11 @@ describe("decidirMatch — casos reais que a IA rejeitou (regressão)", () => {
   });
 });
 
-// Caso onde o comportamento MUDA de propósito em relação ao
-// casamentoDeterministico atual: hoje, "sabonete" com várias marcas batendo
-// resolve sozinho pro preço mediano (ver tests/matching.test.ts). Com score,
-// dois candidatos fortes e quase empatados são ambiguidade real — cai pra
-// confirmação manual em vez de adivinhar.
+// Caso onde o comportamento MUDA de propósito em relação ao antigo
+// casamento por substring (removido — resolvia "sabonete" com várias
+// marcas batendo pro preço mediano, sem checar se era ambiguidade real).
+// Com score, dois candidatos fortes e quase empatados são ambiguidade de
+// verdade — cai pra confirmação manual em vez de adivinhar.
 describe("decidirMatch — mudança de comportamento intencional (item genérico sem marca)", () => {
   it('"leite integral" com dois candidatos igualmente bons fica ambíguo (não escolhe sozinho)', () => {
     const r = decidirMatch("leite integral", [produto("Leite Integral Piracanjuba 1L", 5.0), produto("Leite Integral Italac 1L", 6.0)]);

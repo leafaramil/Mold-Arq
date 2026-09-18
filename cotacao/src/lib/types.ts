@@ -38,9 +38,16 @@ export interface ItemNoMercado {
   itemId: string;
   itemTexto: string;
   candidatos: CandidatoProduto[];
-  // índice em `candidatos` escolhido (pela IA, ou pelo usuário depois de
-  // trocar) — null quando nenhum candidato é um match razoável.
+  // índice em `candidatos` escolhido (pelo score determinístico, pelo cache
+  // de preferência, ou pelo usuário depois de trocar) — null quando nenhum
+  // candidato é um match razoável.
   escolhaIndex: number | null;
+  // true quando o servidor deixou `escolhaIndex` null por ambiguidade (score
+  // sem confiança suficiente), não por falta de candidato — a tela usa isso
+  // pra destacar que esse item pede confirmação manual. Quando o usuário
+  // confirma trocando pra um candidato aqui, essa escolha é aprendida (ver
+  // preferencia_match) — diferente de trocar um item que já tinha resolvido.
+  ambiguo?: boolean;
   // multiplicador manual digitado na tela de resultado pra equalizar o
   // tamanho da embalagem encontrada nesse mercado (ver Resultado.tsx) —
   // opcional, ausente/undefined equivale a "1" (não ajustado).

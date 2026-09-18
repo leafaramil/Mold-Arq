@@ -20,18 +20,20 @@ estado mais recente ao focar a tela ou voltar a ficar online).
   schema em `sql/schema.sql`
 - PWA (manifest + service worker), instalável e funcional offline pra
   adicionar itens (a cotação em si sempre precisa de rede)
-- API da Anthropic pra casar a descrição livre de cada item com os produtos
-  reais encontrados em cada mercado — chamada só do servidor, a chave nunca
-  chega ao cliente (`src/lib/anthropic-server.ts`, `src/lib/matching.ts`)
+- Casamento de produto determinístico, sem IA — score de cobertura de token
+  + similaridade de string (`src/lib/matching-score.ts`), com cache de
+  preferência aprendida (`src/lib/preferencia-match.ts`) e o restante em
+  `src/lib/matching.ts`
 
 ## O que o app faz
 
 1. Rafael e Letícia vão adicionando itens na lista de compras compartilhada
    ao longo da semana (`src/components/Lista.tsx`), descrição livre.
 2. No dia de ir ao mercado, um aperta **Cotar**. O servidor
-   (`POST /api/cotar` → `src/app/api/cotar/route.ts`) busca cada item nos 3
-   mercados configurados e usa IA pra decidir, por mercado, qual produto
-   encontrado (se algum) é de fato o item pedido.
+   (`POST /api/cotar` → `src/app/api/cotar/route.ts`) busca cada item nos
+   mercados configurados e decide, por mercado e sem IA, qual produto
+   encontrado (se algum) é de fato o item pedido — o que fica ambíguo cai
+   pra confirmação manual na tela de resultado.
 3. A tela de resultado mostra, por mercado: o total estimado da lista
    inteira, os itens não encontrados lá, e destaca o mercado mais barato.
 

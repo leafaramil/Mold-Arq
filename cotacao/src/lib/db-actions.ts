@@ -1,5 +1,8 @@
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { Action } from "./action-types";
+import type { MercadoId } from "./matching";
+import { registrarPreferencia } from "./preferencia-match";
+import type { ResultadoCotacao } from "./types";
 
 type Sql = NeonQueryFunction<false, false>;
 
@@ -35,6 +38,27 @@ export async function applyActionToDb(sql: Sql, action: Action): Promise<void> {
       await sql`INSERT INTO cotacoes (lista_id, resultado, atualizado_em)
                 VALUES (${action.listaId}, ${JSON.stringify(action.resultado)}::jsonb, now())
                 ON CONFLICT (lista_id) DO UPDATE SET resultado = EXCLUDED.resultado, atualizado_em = now()`;
+      await aprenderConfirmacoesAmbiguas(sql, action.resultado);
       return;
+  }
+}
+
+/**
+ * Todo item que o servidor deixou ambíguo (score sem confiança) e que
+ * chegou aqui com `escolhaIndex` preenchido só pode ter sido resolvido pela
+ * pessoa trocando manualmente na tela de resultado — grava essa escolha no
+ * cache de preferência (preferencia_match) pra próxima cotação do mesmo
+ * termo nesse mercado resolver direto. Item que já resolveu sozinho
+ * (ambiguo ausente) não passa por aqui, então recotar sem trocar nada não
+ * gera escrita — só a confirmação de verdade é aprendida.
+ */
+async function aprenderConfirmacoesAmbiguas(sql: Sql, resultado: ResultadoCotacao): Promise<void> {
+  for (const mercado of resultado.mercados) {
+    for (const item of mercado.itens) {
+      if (!item.ambiguo || item.escolhaIndex == null) continue;
+      const candidato = item.candidatos[item.escolhaIndex];
+      if (!candidato) continue;
+      await registrarPreferencia(sql, item.itemTexto, mercado.mercadoId as MercadoId, candidato.nome);
+    }
   }
 }

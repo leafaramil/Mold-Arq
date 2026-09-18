@@ -3,19 +3,17 @@
 // de busca de cada mercado pro mesmo termo. Um único item pode ter
 // candidatos vindos de até 5 mercados ao mesmo tempo.
 //
-// Híbrido, pra não gastar IA em toda cotação: primeiro tenta casar por
-// texto (casamentoDeterministico) — resolve de graça os casos óbvios, tipo
-// "arroz" batendo só com "Arroz Camil 5kg" entre os candidatos. Só o que
-// sobra ambíguo (nome bem diferente, sinônimo, marca vs. genérico, ou dois
-// candidatos parecidos demais pra decidir por texto) vai pra 1 chamada de
-// IA cobrindo os mercados que restaram — nunca 1 chamada por mercado, e
-// nenhuma chamada quando tudo já resolveu por texto.
-import { chamarAnthropicComFerramenta, type AnthropicTool } from "./anthropic-server";
+// Sem IA: primeiro tenta o cache de preferência aprendida (preferencia_match
+// — nome de candidato já confirmado antes pra esse termo+mercado); se a
+// busca ao vivo trouxe de novo um candidato com esse nome, resolve direto.
+// Senão, pontua todos os candidatos por score determinístico (ver
+// matching-score.ts) — cobertura de token + similaridade de string, com
+// filtro duro de tamanho. Resolve automaticamente só quando o score é claro;
+// o resto cai pra confirmação manual na tela de resultado (nunca IA).
+import { decidirMatch } from "./matching-score";
 import type { ProdutoEncontrado } from "./mercados/types";
 
 export type MercadoId = "shibata" | "semar" | "alabarce" | "atacadao" | "nagumo";
-
-const SEM_MATCH = -1;
 
 // Tokens que descrevem quantidade/embalagem, não o produto. Os mecanismos
 // de busca dos mercados não lidam bem com eles misturados ao nome — e
@@ -87,7 +85,7 @@ export function termoFallback(termo: string): string | null {
 export function normalizarTexto(s: string): string {
   return s
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 }
 
@@ -100,39 +98,6 @@ export function palavrasSignificativas(texto: string): string[] {
     .map(normalizarTexto);
 }
 
-/**
- * Casamento por texto, sem IA: um candidato é considerado match se TODAS as
- * palavras de conteúdo do item aparecerem no nome dele. Cobre de graça os
- * casos óbvios ("arroz" → "Arroz Camil 5kg"); sinônimo, abreviação e marca
- * vs. genérico (candidato NENHUM bate) continuam precisando da IA.
- *
- * Quando VÁRIOS candidatos batem ao mesmo tempo, não é ambiguidade de
- * verdade — é o caso comum de item sem marca ("sabonete") num mercado que
- * vende várias marcas dele. Escolher a IA pra decidir "qual é o certo"
- * tende a rejeitar tudo (nenhum candidato é "o" sabonete que a pessoa
- * descreveu, já que ela não disse qual). E pegar o mais barato de cada
- * mercado enviesaria a comparação pro lado de quem por acaso tem a opção
- * mais barata daquele item — não é o que a pessoa realmente compraria.
- * Por isso pega o de preço MEDIANO entre os que bateram: nem o mais barato
- * nem o mais caro, a estimativa mais honesta pra esse item genérico.
- */
-export function casamentoDeterministico(itemTexto: string, candidatos: ProdutoEncontrado[]): number | null {
-  const palavras = palavrasSignificativas(itemTexto);
-  if (palavras.length === 0) return null;
-
-  const indices: number[] = [];
-  candidatos.forEach((c, i) => {
-    const nome = normalizarTexto(c.nome);
-    if (palavras.every((p) => nome.includes(p))) indices.push(i);
-  });
-
-  if (indices.length === 0) return null;
-  if (indices.length === 1) return indices[0];
-
-  const ordenadosPorPreco = [...indices].sort((a, b) => candidatos[a].preco - candidatos[b].preco);
-  return ordenadosPorPreco[Math.floor(ordenadosPorPreco.length / 2)];
-}
-
 interface CandidatosPorMercado {
   shibata: ProdutoEncontrado[];
   semar: ProdutoEncontrado[];
@@ -141,189 +106,76 @@ interface CandidatosPorMercado {
   nagumo: ProdutoEncontrado[];
 }
 
-export interface MatchEscolhido {
-  shibata: number | null; // índice em candidatos.shibata, ou null
-  semar: number | null;
-  alabarce: number | null;
-  atacadao: number | null;
-  nagumo: number | null;
+export interface EscolhaMercado {
+  // índice no array de candidatos daquele mercado, ou null quando nenhum foi escolhido.
+  indice: number | null;
+  // true quando `indice` é null porque o score não teve confiança suficiente
+  // pra decidir sozinho (não é "esse mercado não vende isso") — precisa de
+  // confirmação manual na tela de resultado.
+  ambiguo: boolean;
 }
 
-const TOOL: AnthropicTool = {
-  name: "escolher_matches",
-  description:
-    "Escolhe, para cada mercado, qual candidato da lista (se algum) é realmente o mesmo produto que o item da lista de compras descreve. " +
-    "Nomes e marcas variam entre mercados e entre como a pessoa descreveu o item — use bom senso (sinônimos, abreviações, marca vs. genérico). " +
-    `Se nenhum candidato daquele mercado for um match razoável, responda ${SEM_MATCH} pra esse mercado — nunca escolha o candidato só por ser o mais parecido se ele não for realmente o mesmo produto.`,
-  input_schema: {
-    type: "object",
-    properties: {
-      shibata: { type: "integer", description: `Índice (a partir de 0) do candidato do Shibata, ou ${SEM_MATCH} se nenhum servir.` },
-      semar: { type: "integer", description: `Índice (a partir de 0) do candidato do Semar, ou ${SEM_MATCH} se nenhum servir.` },
-      alabarce: { type: "integer", description: `Índice (a partir de 0) do candidato do Alabarce, ou ${SEM_MATCH} se nenhum servir.` },
-      atacadao: { type: "integer", description: `Índice (a partir de 0) do candidato do Atacadão, ou ${SEM_MATCH} se nenhum servir.` },
-      nagumo: { type: "integer", description: `Índice (a partir de 0) do candidato do Nagumo, ou ${SEM_MATCH} se nenhum servir.` },
-    },
-    required: ["shibata", "semar", "alabarce", "atacadao", "nagumo"],
-  },
-};
+export type MatchEscolhido = Record<MercadoId, EscolhaMercado>;
 
-function listarCandidatos(nome: string, produtos: ProdutoEncontrado[]): string {
-  if (produtos.length === 0) return `${nome}: (sem resultados de busca)`;
-  const linhas = produtos.map((p, i) => `  [${i}] ${p.nome} — R$ ${p.preco.toFixed(2)}${p.disponivel ? "" : " (indisponível)"}`);
-  return `${nome}:\n${linhas.join("\n")}`;
-}
-
-function indiceValido(i: number | undefined, tamanho: number, mercado: string, itemTexto: string): number | null {
-  if (i == null || i === SEM_MATCH) return null;
-  if (i < 0 || i >= tamanho) {
-    // Índice fora da lista é erro da IA, não "não encontrado" — vira null do
-    // mesmo jeito (não dá pra adivinhar o produto), mas logar deixa isso
-    // visível nos runtime logs em vez de virar um sumiço silencioso.
-    console.error(`[matching] IA devolveu índice ${i} fora da lista de ${tamanho} candidatos do ${mercado} pro item "${itemTexto}"`);
-    return null;
-  }
-  return i;
-}
+const SEM_ESCOLHA: EscolhaMercado = { indice: null, ambiguo: false };
 
 /** Sem candidato nenhum nos 5 mercados, nem vale a pena tentar casar. */
 function semCandidatos(c: CandidatosPorMercado): boolean {
   return c.shibata.length === 0 && c.semar.length === 0 && c.alabarce.length === 0 && c.atacadao.length === 0 && c.nagumo.length === 0;
 }
 
-export interface ResultadoMatching {
-  escolha: MatchEscolhido;
-  tokensEntrada: number;
-  tokensSaida: number;
-  // Preenchido quando o casamento por IA NÃO pôde ser feito (API da
-  // Anthropic fora do ar, sem crédito, resposta sem tool_use...). Nesse caso
-  // isso não quer dizer "não encontrado" — quem chama precisa marcar como
-  // falha os mercados listados em `mercadosComErro`, senão o produto some
-  // da conta em silêncio. Mercados resolvidos por texto continuam válidos
-  // mesmo que a IA falhe pros que sobraram ambíguos.
-  erro?: string;
-  mercadosComErro?: MercadoId[];
+/**
+ * Chave de lookup no cache de preferência aprendida (preferencia_match, ver
+ * src/lib/preferencia-match.ts) — termo+mercado, não mercado só, porque o
+ * mesmo mercado vende coisas diferentes pra termos diferentes.
+ */
+export function chavePreferencia(itemTexto: string, mercado: MercadoId): string {
+  return `${normalizarTexto(itemTexto.trim())}|${mercado}`;
 }
 
-export async function escolherMatches(itemTexto: string, candidatos: CandidatosPorMercado): Promise<ResultadoMatching> {
+/**
+ * Decide o match pra um único mercado. Cache de preferência primeiro: se
+ * algum candidato da busca ao vivo bate por nome normalizado com o
+ * `nomePreferido` já confirmado antes pra esse termo+mercado, resolve
+ * direto sem pontuar (a busca ao vivo pode não trazer o mesmo produto de
+ * novo — por indisponibilidade ou mudança de nome — por isso é só um
+ * atalho, não uma garantia). Senão, pontua todos os candidatos por score
+ * (matching-score.ts): resolve automaticamente só com score alto e folga
+ * clara sobre o 2º colocado; o resto é ambiguidade real.
+ */
+export function escolherMatchMercado(itemTexto: string, candidatos: ProdutoEncontrado[], nomePreferido: string | null): EscolhaMercado {
+  if (candidatos.length === 0) return SEM_ESCOLHA;
+
+  if (nomePreferido != null) {
+    const indice = candidatos.findIndex((c) => normalizarTexto(c.nome) === nomePreferido);
+    if (indice !== -1) return { indice, ambiguo: false };
+  }
+
+  const { indice, ambiguo } = decidirMatch(itemTexto, candidatos);
+  return { indice, ambiguo };
+}
+
+export interface ResultadoMatching {
+  escolha: MatchEscolhido;
+}
+
+/**
+ * `preferencias` é o cache de preferência aprendida, carregado uma vez por
+ * cotação inteira (não uma consulta por item/mercado) — ver
+ * src/lib/preferencia-match.ts e o carregamento em src/app/api/cotar/route.ts.
+ * Puramente síncrono: sem IA e sem chamada de banco aqui dentro.
+ */
+export function escolherMatches(itemTexto: string, candidatos: CandidatosPorMercado, preferencias: Map<string, string> = new Map()): ResultadoMatching {
   if (semCandidatos(candidatos)) {
-    return { escolha: { shibata: null, semar: null, alabarce: null, atacadao: null, nagumo: null }, tokensEntrada: 0, tokensSaida: 0 };
+    return { escolha: { shibata: SEM_ESCOLHA, semar: SEM_ESCOLHA, alabarce: SEM_ESCOLHA, atacadao: SEM_ESCOLHA, nagumo: SEM_ESCOLHA } };
   }
 
-  // Passo 1 — casamento por texto, de graça: resolve os casos óbvios sem IA.
-  // O que sobra ambíguo (ou sem nenhum candidato batendo por texto) vai pro
-  // passo 2. `escolhaDeterministica` só tem chave pros mercados já
-  // resolvidos (índice OU null explícito por falta de candidato) — chave
-  // ausente é o sinal de "ainda precisa da IA", usado no merge final.
   const mercados = Object.keys(candidatos) as MercadoId[];
-  const escolhaDeterministica: Partial<MatchEscolhido> = {};
-  const candidatosParaIA: CandidatosPorMercado = { shibata: [], semar: [], alabarce: [], atacadao: [], nagumo: [] };
-  let precisaDeIA = false;
-
+  const escolha = {} as MatchEscolhido;
   for (const m of mercados) {
-    const lista = candidatos[m];
-    if (lista.length === 0) {
-      escolhaDeterministica[m] = null;
-      continue;
-    }
-    const idx = casamentoDeterministico(itemTexto, lista);
-    if (idx != null) {
-      escolhaDeterministica[m] = idx;
-    } else {
-      candidatosParaIA[m] = lista;
-      precisaDeIA = true;
-    }
+    const nomePreferido = preferencias.get(chavePreferencia(itemTexto, m)) ?? null;
+    escolha[m] = escolherMatchMercado(itemTexto, candidatos[m], nomePreferido);
   }
 
-  if (!precisaDeIA) {
-    return { escolha: escolhaDeterministica as MatchEscolhido, tokensEntrada: 0, tokensSaida: 0 };
-  }
-
-  // Passo 2 — só os mercados que sobraram ambíguos vão pro prompt (os já
-  // resolvidos entram como "sem resultados de busca", então a IA nem
-  // precisa opinar sobre eles — o índice dela pra esses é ignorado no merge).
-  const system =
-    "Você ajuda a comparar preços de mercado. Recebe o item que a pessoa quer comprar (descrito livremente, muitas vezes digitado rápido " +
-    "no celular) e os resultados de busca de até 5 mercados diferentes para esse item. Sua única tarefa é indicar qual resultado (se algum) " +
-    "de cada mercado é de fato o mesmo produto — nunca invente um match forçado.\n\n" +
-    "O texto do item pode ter erros de digitação ou de português (letra faltando, trocada, ou junção errada de palavras — ex: " +
-    '"Madioquinha" por "Mandioquinha", "Beringela" por "Berinjela"). Não rejeite um candidato só por causa de um erro assim: se o nome ' +
-    "do candidato é claramente a versão corrigida da palavra digitada, considere como o mesmo produto. Só rejeite de verdade quando o " +
-    "candidato for outro produto, ainda que pareça parecido (marca errada, sabor errado, variante diferente do que foi descrito).";
-
-  const mensagem = [
-    `Item da lista de compras: "${itemTexto}"`,
-    "",
-    "Candidatos encontrados em cada mercado:",
-    listarCandidatos("Shibata", candidatosParaIA.shibata),
-    listarCandidatos("Semar", candidatosParaIA.semar),
-    listarCandidatos("Alabarce", candidatosParaIA.alabarce),
-    listarCandidatos("Atacadão", candidatosParaIA.atacadao),
-    listarCandidatos("Nagumo", candidatosParaIA.nagumo),
-  ].join("\n");
-
-  // Mercados que ainda dependem da resposta da IA — se ela falhar, só esses
-  // viram erro; os resolvidos no passo 1 continuam valendo.
-  const mercadosPendentes = mercados.filter((m) => !(m in escolhaDeterministica));
-
-  // Uma falha aqui costumava estourar a cotação inteira (500) ou, pior,
-  // passar batido e marcar TODOS os mercados como "não encontrado" pra esse
-  // item. Agora vira um erro explícito só nos mercados pendentes, que a
-  // tela mostra como falha de busca e o ranking trata como "não comparável".
-  let resposta;
-  try {
-    resposta = await chamarAnthropicComFerramenta(system, mensagem, TOOL);
-  } catch (e) {
-    const erro = e instanceof Error ? e.message : String(e);
-    console.error(`[matching] falha na chamada de IA pro item "${itemTexto}": ${erro}`);
-    const escolhaComPendentesNulos = { ...escolhaDeterministica };
-    for (const m of mercadosPendentes) escolhaComPendentesNulos[m] = null;
-    return { escolha: escolhaComPendentesNulos as MatchEscolhido, tokensEntrada: 0, tokensSaida: 0, erro: "falha ao casar o produto", mercadosComErro: mercadosPendentes };
-  }
-
-  if (!resposta.ferramenta) {
-    console.error(`[matching] resposta da IA sem tool_use pro item "${itemTexto}"`);
-    const escolhaComPendentesNulos = { ...escolhaDeterministica };
-    for (const m of mercadosPendentes) escolhaComPendentesNulos[m] = null;
-    return {
-      escolha: escolhaComPendentesNulos as MatchEscolhido,
-      tokensEntrada: resposta.tokensEntrada,
-      tokensSaida: resposta.tokensSaida,
-      erro: "falha ao casar o produto",
-      mercadosComErro: mercadosPendentes,
-    };
-  }
-
-  const input = resposta.ferramenta.input;
-
-  const escolhaIA: MatchEscolhido = {
-    shibata: indiceValido(input.shibata as number | undefined, candidatosParaIA.shibata.length, "Shibata", itemTexto),
-    semar: indiceValido(input.semar as number | undefined, candidatosParaIA.semar.length, "Semar", itemTexto),
-    alabarce: indiceValido(input.alabarce as number | undefined, candidatosParaIA.alabarce.length, "Alabarce", itemTexto),
-    atacadao: indiceValido(input.atacadao as number | undefined, candidatosParaIA.atacadao.length, "Atacadão", itemTexto),
-    nagumo: indiceValido(input.nagumo as number | undefined, candidatosParaIA.nagumo.length, "Nagumo", itemTexto),
-  };
-
-  const escolha: MatchEscolhido = {
-    shibata: "shibata" in escolhaDeterministica ? (escolhaDeterministica.shibata as number | null) : escolhaIA.shibata,
-    semar: "semar" in escolhaDeterministica ? (escolhaDeterministica.semar as number | null) : escolhaIA.semar,
-    alabarce: "alabarce" in escolhaDeterministica ? (escolhaDeterministica.alabarce as number | null) : escolhaIA.alabarce,
-    atacadao: "atacadao" in escolhaDeterministica ? (escolhaDeterministica.atacadao as number | null) : escolhaIA.atacadao,
-    nagumo: "nagumo" in escolhaDeterministica ? (escolhaDeterministica.nagumo as number | null) : escolhaIA.nagumo,
-  };
-
-  // Diagnóstico temporário: a IA rejeitando TODOS os candidatos de um
-  // mercado pra um item comum ("sabonete", "leite"...) não é erro — ela só
-  // decidiu "nenhum serve". Mas pra confirmar se essa decisão faz sentido
-  // (e não é ela sendo conservadora demais pra item sem marca), loga o que
-  // ela viu e rejeitou. Só dispara pros mercados que foram pra IA e ela
-  // zerou — os resolvidos no passo 1 (texto) não passam por aqui.
-  for (const m of mercadosPendentes) {
-    if (escolha[m] == null && candidatosParaIA[m].length > 0) {
-      const nomes = candidatosParaIA[m].map((c) => `"${c.nome}" (R$ ${c.preco.toFixed(2)})`).join(", ");
-      console.error(`[matching][diagnostico] IA rejeitou todos os candidatos do ${m} pro item "${itemTexto}" — candidatos vistos: ${nomes}`);
-    }
-  }
-
-  return { escolha, tokensEntrada: resposta.tokensEntrada, tokensSaida: resposta.tokensSaida };
+  return { escolha };
 }

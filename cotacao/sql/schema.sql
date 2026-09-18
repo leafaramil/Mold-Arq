@@ -62,3 +62,19 @@ CREATE TABLE IF NOT EXISTS config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   shibata_token TEXT
 );
+
+-- Cache de preferência aprendida pro matching determinístico (sem IA — ver
+-- src/lib/matching.ts e src/lib/preferencia-match.ts): por termo digitado +
+-- mercado, guarda o nome (normalizado) do candidato que já foi confirmado
+-- antes. Numa cotação futura, se a busca ao vivo desse mercado trouxer de
+-- novo um candidato com esse nome, resolve direto sem passar pelo score —
+-- só acelera o caso comum, não substitui o score (a busca ao vivo pode não
+-- trazer o mesmo produto de novo).
+CREATE TABLE IF NOT EXISTS preferencia_match (
+  termo_norm TEXT NOT NULL,
+  mercado TEXT NOT NULL,
+  nome_preferido TEXT NOT NULL,
+  vezes INTEGER NOT NULL DEFAULT 1,
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (termo_norm, mercado)
+);

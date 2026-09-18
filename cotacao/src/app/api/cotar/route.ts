@@ -7,6 +7,7 @@ import { buscarAlabarce } from "@/lib/mercados/alabarce";
 import { buscarAtacadao } from "@/lib/mercados/atacadao";
 import { buscarNagumo } from "@/lib/mercados/nagumo";
 import { escolherMatches, extrairTermoBusca, type MercadoId } from "@/lib/matching";
+import { carregarPreferencias } from "@/lib/preferencia-match";
 import { buscarComFallback } from "@/lib/mercados/fallback";
 import { mapComConcorrencia } from "@/lib/concorrencia";
 import type { Item } from "@/lib/types";
@@ -25,9 +26,10 @@ export const maxDuration = 60;
 //   sobrecarregar o servidor. 6 itens * até 5 mercados = até 30 requisições
 //   simultâneas no pico, um aumento moderado sobre o valor anterior (4).
 // - PRAZO_MS é uma rede de segurança: cada busca de mercado já tem timeout
-//   próprio (fetchComTimeout), mas o total de itens × mercados × casamento
-//   por IA ainda pode, em tese, superar 60s numa lista grande o bastante.
-//   Em vez de deixar a função inteira estourar o limite da Vercel (erro
+//   próprio (fetchComTimeout), mas o total de itens × mercados ainda pode,
+//   em tese, superar 60s numa lista grande o bastante (o casamento em si é
+//   em memória, não conta pra esse tempo). Em vez de deixar a função
+//   inteira estourar o limite da Vercel (erro
 //   genérico, ZERO resultado pro usuário, nem os itens que já tinham
 //   terminado), paramos de iniciar itens NOVOS perto do prazo e devolvemos
 //   o que já foi cotado, marcando o resto como "sem tempo hábil". Garante
@@ -54,7 +56,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ erro: "listaId é obrigatório." }, { status: 400 });
     }
 
-    const model = await loadModel(getSql());
+    const sql = getSql();
+    const model = await loadModel(sql);
+    // Cache de preferência aprendida (ver preferencia-match.ts) — carregado
+    // uma vez pra cotação inteira, não uma consulta por item/mercado.
+    const preferencias = await carregarPreferencias(sql);
     // `itemIds`, quando informado, cota só esse subconjunto — é a chamada de
     // continuação que o cliente dispara automaticamente pros itens que
     // sobraram de uma cotação anterior que bateu no prazo de segurança
@@ -127,31 +133,33 @@ export async function POST(req: Request) {
         shibataToken = null;
         acumuladores.shibata.tokenExpirado = true;
       }
-      const { escolha, erro: erroMatching, mercadosComErro } = await escolherMatches(item.texto, {
-        shibata: shibataRes.produtos,
-        semar: semarRes.produtos,
-        alabarce: alabarceRes.produtos,
-        atacadao: atacadaoRes.produtos,
-        nagumo: nagumoRes.produtos,
-      });
+      const { escolha } = escolherMatches(
+        item.texto,
+        {
+          shibata: shibataRes.produtos,
+          semar: semarRes.produtos,
+          alabarce: alabarceRes.produtos,
+          atacadao: atacadaoRes.produtos,
+          nagumo: nagumoRes.produtos,
+        },
+        preferencias,
+      );
 
       const buscas = { shibata: shibataRes, semar: semarRes, alabarce: alabarceRes, atacadao: atacadaoRes, nagumo: nagumoRes };
       for (const mercadoId of Object.keys(NOMES) as MercadoId[]) {
         const busca = buscas[mercadoId];
-        // Falha na busca DESSE item nesse mercado (rede/HTTP/parse), token
-        // expirado, ou falha do casamento por IA — tudo isso precisa chegar
-        // na tela como "não deu pra consultar", nunca como "não encontrado":
-        // um item que some em silêncio derruba o total do mercado e o faz
-        // parecer o mais barato. O erro de matching só vale pros mercados
-        // que dependiam da IA e ela falhou — um mercado já resolvido por
-        // texto (matching híbrido) não pode virar "erro" só porque a IA
-        // falhou pra OUTRO mercado do mesmo item.
-        const erroItem = busca.erro ?? (busca.tokenExpirado ? "token expirado" : undefined) ?? (mercadosComErro?.includes(mercadoId) ? erroMatching : undefined);
+        // Falha na busca DESSE item nesse mercado (rede/HTTP/parse) ou token
+        // expirado — precisa chegar na tela como "não deu pra consultar",
+        // nunca como "não encontrado": um item que some em silêncio derruba
+        // o total do mercado e o faz parecer o mais barato. O casamento em
+        // si (escolherMatches) é puramente em memória e nunca falha.
+        const erroItem = busca.erro ?? (busca.tokenExpirado ? "token expirado" : undefined);
         itensPorMercado[mercadoId].set(item.id, {
           itemId: item.id,
           itemTexto: item.texto,
           candidatos: busca.produtos,
-          escolhaIndex: escolha[mercadoId],
+          escolhaIndex: escolha[mercadoId].indice,
+          ...(escolha[mercadoId].ambiguo ? { ambiguo: true } : {}),
           ...(erroItem ? { erro: erroItem } : {}),
         });
       }

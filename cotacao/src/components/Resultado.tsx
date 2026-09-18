@@ -217,10 +217,14 @@ export function Resultado({
                         </div>
                         <div style={{ whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
                           {idx == null ? (
-                            // "falha na busca" e "não encontrado" são coisas
-                            // diferentes: a primeira é problema do app/mercado,
-                            // a segunda é o mercado realmente não ter o produto.
-                            <span style={{ color: item.erro ? T.gold : T.brick, fontSize: 11 }}>{item.erro ? "falha na busca" : "não encontrado"}</span>
+                            // Três motivos diferentes pra idx null: falha na
+                            // busca (problema do app/mercado), ambíguo (tem
+                            // candidato, mas nenhum claro o bastante — a
+                            // pessoa escolhe abrindo o item), ou de fato "não
+                            // encontrado" (o mercado não tem o produto).
+                            <span style={{ color: item.erro ? T.gold : item.ambiguo ? T.gold : T.brick, fontSize: 11 }}>
+                              {item.erro ? "falha na busca" : item.ambiguo ? "confirmar escolha" : "não encontrado"}
+                            </span>
                           ) : (
                             <span style={{ color: T.ink, fontWeight: 700 }}>{fmt(item.candidatos[idx].preco)}</span>
                           )}

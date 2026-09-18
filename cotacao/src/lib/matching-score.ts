@@ -1,15 +1,10 @@
 // Score determinístico pra decidir se um candidato de busca é o mesmo
-// produto que o item digitado — substitui a chamada de IA que hoje resolve
-// os casos que `casamentoDeterministico` deixa passar (nome muito diferente
-// pra bater por substring, ou vários candidatos batendo ao mesmo tempo).
+// produto que o item digitado — a única decisão de matching do app (ver
+// escolherMatches em matching.ts), sem nenhuma chamada de IA.
 //
 // Roda inteiro em memória, sobre os candidatos que a busca ao vivo de cada
 // mercado já devolve — sem banco, sem catálogo persistido, sem depender de
 // EAN (que só o Shibata expõe, e nem isso é extraído hoje).
-//
-// NÃO está plugado no fluxo principal ainda (ver escolherMatches em
-// matching.ts) — é só o módulo de score, pra calibrar contra casos reais
-// antes de trocar o fallback de IA por ele.
 import { normalizarTexto, palavrasSignificativas } from "./matching";
 import type { ProdutoEncontrado } from "./mercados/types";
 
