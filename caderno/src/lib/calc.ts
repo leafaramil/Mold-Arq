@@ -383,16 +383,23 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
 
   const pagoBruto = round2(despesas.reduce((s, d) => s + (estadosDoMes[d.id]?.pago ?? 0), 0));
 
-  const separadoDespesas = despesas.reduce((s, d) => {
-    const e = estadosDoMes[d.id];
-    if (!e || e.pago != null || e.separado == null) return s;
-    return s + Math.max(0, e.separado - gastoTotalDe(d.id));
-  }, 0);
-  const separadoCartoes = cartoes.reduce((s, c) => {
-    const e = estadosDoMes[c.id];
-    if (!e || e.pago != null || e.separado == null) return s;
-    return s + e.separado;
-  }, 0);
+  const separadoDespesas = round2(
+    despesas.reduce((s, d) => {
+      const e = estadosDoMes[d.id];
+      if (!e || e.pago != null || e.separado == null) return s;
+      return s + Math.max(0, e.separado - gastoTotalDe(d.id));
+    }, 0),
+  );
+  // O separado de um cartão também entra em `cartoesLancados` logo abaixo —
+  // por isso o `livre` desconta só `separadoDespesas`, nunca o `separado`
+  // inteiro, senão o mesmo dinheiro sairia duas vezes da conta.
+  const separadoCartoes = round2(
+    cartoes.reduce((s, c) => {
+      const e = estadosDoMes[c.id];
+      if (!e || e.pago != null || e.separado == null) return s;
+      return s + e.separado;
+    }, 0),
+  );
   const separado = round2(separadoDespesas + separadoCartoes);
 
   const gastoDeCaixinhas = round2(
@@ -429,6 +436,16 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     }, 0),
   );
 
+  // Só a parte de cartão que já foi de fato paga (não a separada, ainda só
+  // reservada) — para somar no "pago" exibido na tela inicial junto das
+  // despesas, já que a fatura do cartão também é dinheiro que saiu da conta.
+  const cartoesPagos = round2(
+    cartoes.reduce((s, c) => {
+      const e = estadosDoMes[c.id];
+      return e?.pago != null ? s + e.pago : s;
+    }, 0),
+  );
+
   // Um mês que ainda não chegou (posterior ao mês corrente de verdade) nunca
   // herda saldo nenhum, nem o do mês anterior nem o inicial configurado —
   // fica em zero até a virada acontecer de fato. Evita mostrar uma prévia
@@ -446,7 +463,7 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     saldoInicial +
       recebido -
       pagoBruto -
-      separado -
+      separadoDespesas -
       gastoDeCaixinhas -
       estouro -
       devolvido -
@@ -459,7 +476,11 @@ export function calcularLivre(model: DataModel, mesRef: string, hoje: Date): Liv
     saldoInicial,
     recebido,
     pagoBruto,
-    pago: round2(pagoBruto + gastoDeCaixinhas),
+    // Tudo que de fato saiu da conta no mês: contas pagas, o que já foi
+    // gasto das caixinhas (inclusive o que estourou), fatura de cartão paga,
+    // dízimo devolvido e recarga de ZUL. Assim os cards da tela inicial
+    // fecham exatamente: saldo anterior + recebido − pago − separado = livre.
+    pago: round2(pagoBruto + gastoDeCaixinhas + estouro + cartoesPagos + devolvido + gastoZulMes),
     separado,
     estouro,
     devolvido,

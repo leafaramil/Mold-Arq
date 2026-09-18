@@ -98,6 +98,7 @@ export function Home({
       <div style={{ display: "flex", gap: 7, marginBottom: 20 }}>
         {(
           [
+            ["Saldo anterior", livre.saldoInicial, T.gold],
             ["Recebido", livre.recebido, T.sage],
             ["Separado", livre.separado, T.blue],
             ["Pago", livre.pago, T.brick],
